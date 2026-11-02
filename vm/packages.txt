@@ -95,6 +95,7 @@ fonts-noto-cjk
 
 # Bluetooth: headphones, speakers, controllers
 bluez
+bluez-tools
 libspa-0.2-bluetooth
 
 # NordVPN comes from Nord's repository in build-image.sh. Its upgrade script calls sudo,

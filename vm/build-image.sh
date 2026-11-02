@@ -160,8 +160,9 @@ install -m 600 "$OUT/authorized_keys" "$ROOT/root/.ssh/authorized_keys"
 install -d -m 755 "$ROOT/var/lib/tv" "$ROOT/var/log/journal" "$ROOT/boot/efi"
 
 in_root systemctl enable tvd.service tv-firstboot.service ssh.service avahi-daemon.service \
-    NetworkManager.service systemd-timesyncd.service bluetooth.service \
+    NetworkManager.service systemd-timesyncd.service bluetooth.service tv-bt-agent.service \
     nordvpnd.socket nordvpnd.service tv-nordvpn-setup.service
+chmod 600 "$ROOT/etc/bluetooth/tv-pins"  # bt-agent warns when its pin file is readable by others
 # Only the home screen service (root) controls the VPN, not the browser's user.
 in_root gpasswd -d tv nordvpn >/dev/null 2>&1 || true
 in_root systemctl set-default multi-user.target

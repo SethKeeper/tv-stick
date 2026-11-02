@@ -440,46 +440,56 @@ def bt_busctl(*args, timeout=15):
     return False, "Bluetooth said: " + ((err or out).strip().splitlines() or ["unknown error"])[-1]
 
 
-def bt_objects():
-    """Everything BlueZ knows, from one D-Bus call: (adapter properties, [device properties])."""
-    code, out, _ = run(["busctl", "--json=short", "call", "org.bluez", "/",
-                        "org.freedesktop.DBus.ObjectManager", "GetManagedObjects"], timeout=10)
-    if code != 0:
-        return None, []
-    try:
-        data = json.loads(out)["data"][0]
-    except (ValueError, KeyError, IndexError, TypeError):
-        return None, []
+DEVICE_LINE = re.compile(r"^Device ([0-9A-F]{2}(?::[0-9A-F]{2}){5}) (.*)$")
+_bt_icons = {}  # MAC -> icon name; `info` costs a call per device, and icons don't change
 
-    def plain(props):
-        return {k: v.get("data") for k, v in props.items() if isinstance(v, dict)}
 
-    adapter, devices = None, []
-    for path, ifaces in data.items():
-        if path == BT_ADAPTER and "org.bluez.Adapter1" in ifaces:
-            adapter = plain(ifaces["org.bluez.Adapter1"])
-        if path.startswith(BT_ADAPTER + "/dev_") and "org.bluez.Device1" in ifaces:
-            devices.append(plain(ifaces["org.bluez.Device1"]))
-    return adapter, devices
+def btctl(*args, timeout=10):
+    """bluetoothctl as text. (`busctl --json` can't be used: it fails outright as soon as any
+    nearby device advertises manufacturer data, whose dictionary has number keys.)"""
+    code, out, _ = run(["bluetoothctl"] + list(args), timeout=timeout)
+    return code, ANSI.sub("", out)
+
+
+def bt_list(*which):
+    """[(MAC, alias)] from `bluetoothctl devices [Paired|Connected]`."""
+    found = []
+    for line in btctl("devices", *which)[1].splitlines():
+        m = DEVICE_LINE.match(line.strip())
+        if m:
+            found.append((m.group(1), m.group(2).strip()))
+    return found
+
+
+def bt_icon(mac):
+    if mac not in _bt_icons:
+        _bt_icons[mac] = key_values(btctl("info", mac)[1]).get("icon", "")
+    return _bt_icons[mac]
 
 
 def bt_status():
     if FAKE:
         return json.loads(json.dumps(FAKE_BT))
-    adapter, devices = bt_objects()
-    if adapter is None:
+    proc = _bt_scan["proc"]
+    scanning = proc is not None and proc.poll() is None  # poll() also reaps a finished scan
+    code, out = btctl("show")
+    if code != 0 or "Powered:" not in out:
         return {"available": False}
-    out = []
-    for d in devices:
-        paired = bool(d.get("Paired") or d.get("Bonded"))
-        # Alias falls back to the address; only paired devices may show it.
-        name = d.get("Name") or (d.get("Alias") if paired else "")
-        out.append({"mac": d.get("Address", ""), "name": name or "", "icon": d.get("Icon") or "",
-                    "paired": paired, "connected": bool(d.get("Connected"))})
-    out.sort(key=lambda x: (not x["connected"], not x["paired"], x["name"].lower()))
-    scanning = _bt_scan["proc"] is not None and _bt_scan["proc"].poll() is None
-    return {"available": True, "powered": bool(adapter.get("Powered")),
-            "discovering": bool(adapter.get("Discovering")) or scanning, "devices": out}
+    show = key_values(out)
+    paired = {mac for mac, _ in bt_list("Paired")}
+    connected = {mac for mac, _ in bt_list("Connected")}
+    devices = []
+    for mac, alias in bt_list():
+        # Without a name, BlueZ shows the address with dashes. Nobody can recognise those,
+        # so they're only listed once paired.
+        named = bool(alias) and alias != mac.replace(":", "-")
+        if not named and mac not in paired:
+            continue
+        devices.append({"mac": mac, "name": alias if named else mac, "icon": bt_icon(mac),
+                        "paired": mac in paired, "connected": mac in connected})
+    devices.sort(key=lambda d: (not d["connected"], not d["paired"], d["name"].lower()))
+    return {"available": True, "powered": show.get("powered") == "yes",
+            "discovering": show.get("discovering") == "yes" or scanning, "devices": devices[:60]}
 
 
 def bt_summary():
@@ -511,8 +521,11 @@ def bt_scan():
         return True, ""
     proc = _bt_scan["proc"]
     if proc is None or proc.poll() is not None:
+        # An open stdin pipe that never closes keeps bluetoothctl (and so the search)
+        # running for the full timeout.
         _bt_scan["proc"] = subprocess.Popen(["bluetoothctl", "--timeout", "45", "scan", "on"],
-                                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                                            stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                                            stderr=subprocess.DEVNULL)
     return True, ""
 
 

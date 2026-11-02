@@ -1,0 +1,19 @@
+[Unit]
+Description=Bluetooth pairing agent for the TV (Just Works, never prompts)
+# Without a default agent BlueZ keeps no pairings, and Bluetooth LE devices can't pair at all.
+BindsTo=bluetooth.service
+After=bluetooth.service
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=/usr/bin/bt-agent --capability=NoInputNoOutput --pin=/etc/bluetooth/tv-pins
+# With no input, every question it can't answer from the pin file gets "no", so it never waits.
+StandardInput=null
+# bt-agent quits on SIGINT (its SIGTERM handler only re-reads the pin file).
+KillSignal=SIGINT
+TimeoutStopSec=3
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=bluetooth.service
