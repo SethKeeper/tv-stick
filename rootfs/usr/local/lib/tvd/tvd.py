@@ -506,10 +506,16 @@ def bt_power(on):
     if FAKE:
         FAKE_BT["powered"] = bool(on)
         return True, ""
+    # BlueZ powers the adapter on again at every start, so "off" is an rfkill block, which
+    # systemd restores at boot. Unblocking first lets "on" work after such a block.
     if on:
         run(["rfkill", "unblock", "bluetooth"], timeout=5)
-    return bt_busctl("set-property", "org.bluez", BT_ADAPTER, "org.bluez.Adapter1",
-                     "Powered", "b", "true" if on else "false")
+        time.sleep(1)
+    ok, err = bt_busctl("set-property", "org.bluez", BT_ADAPTER, "org.bluez.Adapter1",
+                        "Powered", "b", "true" if on else "false")
+    if not on:
+        run(["rfkill", "block", "bluetooth"], timeout=5)
+    return ok, err
 
 
 def bt_scan():
@@ -521,8 +527,8 @@ def bt_scan():
         return True, ""
     proc = _bt_scan["proc"]
     if proc is None or proc.poll() is not None:
-        # An open stdin pipe that never closes keeps bluetoothctl (and so the search)
-        # running for the full timeout.
+        # Since BlueZ 5.71 a bare "scan on" quits within a second, and the search ends with
+        # it; --timeout keeps bluetoothctl (and so the search) running for 45 seconds.
         _bt_scan["proc"] = subprocess.Popen(["bluetoothctl", "--timeout", "45", "scan", "on"],
                                             stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
                                             stderr=subprocess.DEVNULL)
