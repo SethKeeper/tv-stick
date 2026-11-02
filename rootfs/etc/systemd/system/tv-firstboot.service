@@ -1,0 +1,11 @@
+[Unit]
+Description=Grow the TV stick's partition to fill the stick (first boot only)
+ConditionPathExists=!/var/lib/tv/firstboot-done
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tv-firstboot
+
+[Install]
+WantedBy=multi-user.target

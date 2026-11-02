@@ -1,0 +1,40 @@
+{
+  "policies": {
+    "DisableAppUpdate": true,
+    "DisableTelemetry": true,
+    "DisableFirefoxStudies": true,
+    "DisablePocket": true,
+    "DisableProfileImport": true,
+    "DisableSetDesktopBackground": true,
+    "DontCheckDefaultBrowser": true,
+    "NoDefaultBookmarks": true,
+    "OverrideFirstRunPage": "",
+    "OverridePostUpdatePage": "",
+    "ShowHomeButton": true,
+    "EncryptedMediaExtensions": { "Enabled": true, "Locked": true },
+    "Homepage": { "URL": "http://127.0.0.1:8765/", "StartPage": "homepage", "Locked": false },
+    "FirefoxHome": {
+      "SponsoredTopSites": false,
+      "SponsoredPocket": false,
+      "Pocket": false,
+      "Highlights": false,
+      "Locked": false
+    },
+    "UserMessaging": {
+      "ExtensionRecommendations": false,
+      "FeatureRecommendations": false,
+      "UrlbarInterventions": false,
+      "SkipOnboarding": true,
+      "MoreFromMozilla": false,
+      "Locked": false
+    },
+    "Permissions": { "Autoplay": { "Default": "allow-audio-video" } },
+    "ExtensionSettings": {
+      "uBlock0@raymondhill.net": {
+        "installation_mode": "force_installed",
+        "install_url": "file:///usr/local/share/tv/ublock-origin.xpi",
+        "private_browsing": true
+      }
+    }
+  }
+}

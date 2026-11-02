@@ -1,0 +1,12 @@
+#!/bin/sh
+# First boot of a freshly written stick: grow the root partition to fill the stick.
+set -eu
+root_dev=$(findmnt -no SOURCE /)
+part_name=$(basename "$root_dev")
+disk="/dev/$(lsblk -no PKNAME "$root_dev")"
+part_num=$(cat "/sys/class/block/$part_name/partition")
+echo "Growing $root_dev (partition $part_num of $disk)"
+growpart "$disk" "$part_num" || true
+resize2fs "$root_dev"
+mkdir -p /var/lib/tv
+touch /var/lib/tv/firstboot-done

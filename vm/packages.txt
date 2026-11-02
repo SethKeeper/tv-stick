@@ -1,0 +1,97 @@
+# Debian packages on the stick (amd64, trixie). Firefox comes from Mozilla's
+# repository in build-image.sh. Recommends are not installed, so everything
+# needed is listed here.
+
+# Base system
+systemd-sysv
+systemd-timesyncd
+systemd-zram-generator
+udev
+dbus
+dbus-user-session
+libpam-systemd
+kmod
+iproute2
+iputils-ping
+procps
+psmisc
+less
+nano
+curl
+ca-certificates
+locales
+tzdata
+python3
+pciutils
+usbutils
+zstd
+
+# Booting from the stick
+linux-image-amd64
+initramfs-tools
+intel-microcode
+amd64-microcode
+iucode-tool
+efibootmgr
+cloud-guest-utils
+fdisk
+gdisk
+e2fsprogs
+dosfstools
+plymouth
+plymouth-themes
+
+# Firmware for Wi-Fi, graphics and sound on whatever is inside the mini PC
+firmware-linux-free
+firmware-misc-nonfree
+firmware-amd-graphics
+firmware-intel-graphics
+firmware-intel-misc
+firmware-mediatek
+firmware-iwlwifi
+firmware-realtek
+firmware-atheros
+firmware-brcm80211
+firmware-sof-signed
+firmware-intel-sound
+wireless-regdb
+
+# Video: GPU drivers and hardware decoding
+libgl1-mesa-dri
+libegl-mesa0
+mesa-va-drivers
+intel-media-va-driver-non-free
+i965-va-driver
+vainfo
+libavcodec61
+
+# Sound
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+pulseaudio-utils
+alsa-ucm-conf
+alsa-topology-conf
+alsa-utils
+
+# Network
+network-manager
+wpasupplicant
+iw
+rfkill
+avahi-daemon
+libnss-mdns
+openssh-server
+
+# Screen
+sway
+swaybg
+adwaita-icon-theme
+fonts-inter
+fonts-noto-core
+fonts-noto-color-emoji
+fonts-noto-cjk
+
+# Updates
+unattended-upgrades

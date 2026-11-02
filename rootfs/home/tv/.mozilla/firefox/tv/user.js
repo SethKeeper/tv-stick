@@ -1,0 +1,28 @@
+// TV defaults. apply-scale rewrites the devPixelsPerPx line before every start.
+user_pref("browser.startup.homepage", "http://127.0.0.1:8765/");
+user_pref("browser.startup.page", 1);
+user_pref("browser.sessionstore.resume_from_crash", false);
+user_pref("browser.sessionstore.interval", 300000);
+user_pref("browser.cache.disk.enable", false);
+user_pref("browser.cache.memory.capacity", 262144);
+user_pref("browser.fullscreen.autohide", true);
+user_pref("full-screen-api.warning.timeout", 0);
+user_pref("full-screen-api.transition-duration.enter", "0 0");
+user_pref("full-screen-api.transition-duration.leave", "0 0");
+user_pref("browser.tabs.closeWindowWithLastTab", false);
+user_pref("browser.tabs.warnOnClose", false);
+user_pref("browser.tabs.warnOnCloseOtherTabs", false);
+user_pref("browser.shell.checkDefaultBrowser", false);
+user_pref("browser.aboutwelcome.enabled", false);
+user_pref("browser.translations.automaticallyPopup", false);
+user_pref("media.autoplay.default", 0);
+user_pref("media.videocontrols.picture-in-picture.video-toggle.enabled", false);
+user_pref("extensions.activeThemeID", "firefox-compact-dark@mozilla.org");
+user_pref("layout.css.prefers-color-scheme.content-override", 0);
+user_pref("ui.key.menuAccessKeyFocuses", false);
+user_pref("datareporting.policy.dataSubmissionPolicyBypassNotification", true);
+user_pref("browser.newtabpage.activity-stream.showSponsored", false);
+user_pref("browser.newtabpage.activity-stream.showSponsoredTopSites", false);
+user_pref("browser.urlbar.suggest.quicksuggest.sponsored", false);
+user_pref("widget.use-xdg-desktop-portal.file-picker", 0);
+user_pref("layout.css.devPixelsPerPx", "1.5");

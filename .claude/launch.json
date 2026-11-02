@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tv-home (fake data)",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": ["TVD_FAKE=1", "TVD_STATE=out/fake-state", "TVD_PORT=8766", "python3", "rootfs/usr/local/lib/tvd/tvd.py"],
+      "port": 8766
+    }
+  ]
+}

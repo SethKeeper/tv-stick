@@ -1,0 +1,25 @@
+#!/bin/sh
+# Runs inside sway: keeps Firefox open, full screen, on the TV home screen.
+PROFILE="$HOME/.mozilla/firefox/tv"
+HOME_URL="http://127.0.0.1:8765/"
+LIB=/usr/local/lib/tvd
+
+# Give the home screen service a moment to come up.
+i=0
+while [ "$i" -lt 40 ] && ! curl -fs -o /dev/null "${HOME_URL}healthz"; do
+    sleep 0.5
+    i=$((i + 1))
+done
+
+"$LIB/fullscreen-keeper" &
+"$LIB/audio-auto" &
+
+while true; do
+    # A Firefox that restarted itself (after an update, say) is still running. Wait for it.
+    while pgrep -u "$(id -u)" -f -- "--profile $PROFILE" >/dev/null; do sleep 2; done
+    "$LIB/apply-scale" "$PROFILE"
+    rm -f "$PROFILE/lock" "$PROFILE/.parentlock"
+    touch "$XDG_RUNTIME_DIR/tv-browser.stamp"
+    firefox --profile "$PROFILE" 2>&1 | systemd-cat -t firefox -p info
+    sleep 1
+done

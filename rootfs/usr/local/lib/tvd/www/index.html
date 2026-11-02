@@ -1,0 +1,1147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="dark">
+<meta name="referrer" content="no-referrer">
+<title>Home</title>
+<style>
+@property --tint {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #22336e;
+}
+:root {
+  --label: #ffffff;
+  --label-2: rgba(235, 235, 245, 0.64);
+  --label-3: rgba(235, 235, 245, 0.36);
+  --separator: rgba(255, 255, 255, 0.1);
+  --fill: rgba(120, 120, 128, 0.26);
+  --glass: rgba(44, 44, 50, 0.46);
+  --glass-line: rgba(255, 255, 255, 0.13);
+  --blue: #0a84ff;
+  --red: #ff453a;
+  --orange: #ff9f0a;
+  --pink: #ff375f;
+  --indigo: #5e5ce6;
+  --gray: #8e8e93;
+  --spring: cubic-bezier(0.22, 1.3, 0.36, 1);
+  --ease: cubic-bezier(0.25, 0.8, 0.25, 1);
+  --text: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Noto Sans", sans-serif;
+  --display: "Inter Display", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Noto Sans", sans-serif;
+  transition: --tint 0.9s var(--ease);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  overflow: hidden;
+  background: #040507;
+  color: var(--label);
+  font-family: var(--text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+button, input { font: inherit; color: inherit; }
+button { background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-align: inherit; }
+:focus { outline: none; }
+svg.i {
+  width: 1.5vw; height: 1.5vw; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round;
+}
+svg.i.small { width: 1.2vw; height: 1.2vw; }
+
+/* Wallpaper: slow-moving light, tinted by whichever app has focus. */
+.wallpaper { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.wallpaper i { position: absolute; border-radius: 50%; will-change: transform; }
+.wallpaper .a {
+  width: 80vw; height: 80vw; left: -24vw; top: -42vw;
+  background: radial-gradient(closest-side, rgba(62, 92, 214, 0.5), rgba(62, 92, 214, 0));
+  animation: drift-a 42s var(--ease) infinite alternate;
+}
+.wallpaper .b {
+  width: 64vw; height: 64vw; right: -20vw; top: -6vw;
+  background: radial-gradient(closest-side, rgba(150, 70, 200, 0.32), rgba(150, 70, 200, 0));
+  animation: drift-b 54s var(--ease) infinite alternate;
+}
+.wallpaper .c {
+  width: 92vw; height: 60vw; left: 8vw; bottom: -38vw;
+  background: radial-gradient(closest-side, rgba(20, 150, 170, 0.26), rgba(20, 150, 170, 0));
+  animation: drift-c 66s var(--ease) infinite alternate;
+}
+.wallpaper .tint {
+  width: 110vw; height: 70vw; left: -5vw; top: -46vw;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--tint) 80%, transparent), transparent);
+}
+.wallpaper::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(4, 5, 7, 0) 45%, rgba(4, 5, 7, 0.6) 100%);
+}
+@keyframes drift-a { to { transform: translate(10vw, 6vw) scale(1.12); } }
+@keyframes drift-b { to { transform: translate(-8vw, 10vw) scale(0.92); } }
+@keyframes drift-c { to { transform: translate(-6vw, -8vw) scale(1.1); } }
+
+.screen {
+  position: fixed; inset: 0;
+  display: grid; grid-template-rows: auto 1fr auto;
+  padding: 3.2vw 4.6vw 2.4vw;
+}
+
+/* Top: date and time on the left, glass controls on the right. */
+.top { display: flex; justify-content: space-between; align-items: flex-start; }
+.date { font-size: 1.35vw; font-weight: 600; color: var(--label-2); }
+.time {
+  margin-top: 0.2vw;
+  font-family: var(--display); font-size: 5.8vw; font-weight: 600;
+  letter-spacing: -0.045em; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.controls { display: flex; align-items: center; gap: 1vw; }
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(2.2vw) saturate(1.8);
+  border: 1px solid var(--glass-line);
+  box-shadow: 0 0.8vw 2.4vw rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+.pill, .circle {
+  transition: transform 0.45s var(--spring), background 0.2s, color 0.2s, box-shadow 0.3s;
+}
+.pill {
+  height: 3.6vw; max-width: 26vw; padding: 0 1.5vw 0 1.25vw; border-radius: 1.8vw;
+  display: inline-flex; align-items: center; gap: 0.75vw;
+  font-size: 1.2vw; font-weight: 600; color: var(--label-2);
+}
+.pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pill.offline { color: #ff8f87; }
+.circle { width: 3.6vw; height: 3.6vw; border-radius: 50%; display: grid; place-items: center; }
+.circle svg.i { width: 1.6vw; height: 1.6vw; }
+.pill:focus, .circle:focus {
+  background: rgba(255, 255, 255, 0.96); color: #000; border-color: transparent;
+  transform: scale(1.12); box-shadow: 0 1.2vw 2.8vw rgba(0, 0, 0, 0.4);
+}
+
+/* App tiles, Apple TV style: they lift, tilt toward the pointer and catch the light. */
+main { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.2vw; min-height: 0; }
+.editbar {
+  display: flex; align-items: center; gap: 1.4vw;
+  padding: 0.5vw 0.5vw 0.5vw 1.8vw; border-radius: 2.4vw;
+  font-size: 1.2vw; font-weight: 500; color: var(--label-2);
+}
+.editbar[hidden] { display: none; }
+.tiles {
+  width: 100%; display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start;
+  gap: 0.4vw 2.2vw; padding: 2.4vw 4vw 1.2vw;
+}
+.tiles.scroll { max-height: 33vw; overflow-y: auto; scrollbar-width: none; }
+.tile { width: 15vw; display: flex; flex-direction: column; align-items: center; perspective: 70vw; }
+.wiggle { width: 100%; }
+.icon {
+  --rx: 0deg; --ry: 0deg; --mx: 30%; --my: 0%; --s: 1;
+  position: relative; width: 15vw; height: 9vw; border-radius: 1.5vw; overflow: hidden;
+  display: grid; place-items: center;
+  background: var(--c, #1c1c1e);
+  box-shadow: 0 0.5vw 1.4vw rgba(0, 0, 0, 0.32);
+  transform: rotateX(var(--rx)) rotateY(var(--ry)) scale(var(--s));
+  transition: transform 0.45s var(--spring), box-shadow 0.45s var(--ease);
+}
+.icon .art {
+  position: absolute; left: -40%; top: -40%; width: 180%; height: 180%;
+  object-fit: cover; filter: blur(2.2vw) saturate(1.7); opacity: 0.5;
+}
+.icon .glyph {
+  position: relative; max-width: 36%; max-height: 48%; object-fit: contain;
+  filter: drop-shadow(0 0.3vw 0.9vw rgba(0, 0, 0, 0.35));
+}
+.icon .art.vector { display: grid; place-items: center; }
+.icon .art.vector svg { width: 30%; }
+.icon .glyph.vector { width: 36%; height: 48%; display: grid; place-items: center; }
+.icon .glyph.vector svg { width: 100%; height: 100%; }
+.icon .mono {
+  position: relative; font-family: var(--display); font-size: 4.2vw; font-weight: 700;
+  letter-spacing: -0.05em; color: rgba(255, 255, 255, 0.94);
+}
+.icon::before {
+  content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.icon::after {
+  content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0;
+  background: radial-gradient(70% 90% at var(--mx) var(--my), rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 62%);
+  transition: opacity 0.35s var(--ease);
+}
+.tile:focus .icon { --s: 1.13; box-shadow: 0 2.4vw 4.4vw rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.12); }
+.tile:focus .icon::after { opacity: 1; }
+.name {
+  height: 2.2vw; margin-top: 1.5vw; max-width: 100%;
+  font-size: 1.2vw; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: 0; transform: translateY(-0.5vw);
+  transition: opacity 0.25s var(--ease), transform 0.45s var(--spring);
+}
+.tile:focus .name { opacity: 1; transform: none; }
+.editing .name { opacity: 0.7; transform: none; }
+.icon.add { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(1.6vw); }
+.icon.add::before { box-shadow: inset 0 0 0 0.13vw rgba(255, 255, 255, 0.16); }
+.icon.add svg.i { width: 2.4vw; height: 2.4vw; color: var(--label-2); stroke-width: 1.6; }
+.editing .tile:not(.add-tile) .wiggle { animation: wiggle 0.32s ease-in-out infinite alternate; }
+.editing .tile:nth-child(2n) .wiggle { animation-delay: -0.16s; animation-duration: 0.29s; }
+@keyframes wiggle { from { transform: rotate(-1.1deg); } to { transform: rotate(1.1deg); } }
+
+/* Search, Spotlight style. */
+.search {
+  width: 44vw; height: 4.4vw; padding: 0 1.7vw; border-radius: 2.2vw;
+  display: flex; align-items: center; gap: 1vw;
+  transition: transform 0.45s var(--spring), background 0.2s, box-shadow 0.3s;
+}
+.search svg.i { color: var(--label-3); }
+.search input {
+  flex: 1; min-width: 0; height: 100%; background: none; border: 0;
+  font-size: 1.45vw; font-weight: 500; color: var(--label); user-select: text;
+}
+.search input::placeholder { color: var(--label-3); }
+.search:focus-within {
+  background: rgba(255, 255, 255, 0.96); border-color: transparent;
+  transform: scale(1.04); box-shadow: 0 1.2vw 3vw rgba(0, 0, 0, 0.4);
+}
+.search:focus-within svg.i { color: rgba(0, 0, 0, 0.45); }
+.search:focus-within input { color: #000; }
+.search:focus-within input::placeholder { color: rgba(0, 0, 0, 0.38); }
+.hint { text-align: center; font-size: 1.05vw; font-weight: 500; color: var(--label-3); }
+
+/* Sheets: frosted panels with grouped lists, like tvOS Settings. */
+.layer {
+  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
+  background: rgba(0, 0, 0, 0.32); backdrop-filter: blur(2.8vw) saturate(1.3);
+  animation: fade 0.3s var(--ease);
+}
+.layer[hidden] { display: none; }
+.sheet {
+  width: 44vw; max-height: 86vh; overflow-y: auto; scrollbar-width: none;
+  padding: 1.6vw 1.8vw 2vw; border-radius: 2.2vw;
+  background: rgba(38, 38, 42, 0.74); border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 3vw 8vw rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  animation: rise 0.5s var(--spring);
+}
+.sheet.swap { animation: swap 0.38s var(--ease); }
+@keyframes fade { from { opacity: 0; } }
+@keyframes rise { from { opacity: 0; transform: translateY(2vw) scale(0.96); } }
+@keyframes swap { from { opacity: 0; transform: translateX(1.6vw); } }
+.sheet-head { display: grid; grid-template-columns: 3.2vw 1fr 3.2vw; align-items: center; gap: 1vw; margin-bottom: 1.4vw; }
+.sheet-head h2 {
+  margin: 0; text-align: center; font-family: var(--display); font-size: 1.85vw; font-weight: 700;
+  letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sheet-head .circle { width: 3.2vw; height: 3.2vw; background: var(--fill); }
+.sheet-head .circle svg.i { width: 1.4vw; height: 1.4vw; stroke-width: 2.2; }
+.note { margin: 0 0 1.4vw; padding: 0 0.6vw; font-size: 1.15vw; line-height: 1.45; color: var(--label-2); text-align: center; }
+.caption {
+  margin: 0 0 0.6vw 1.3vw; font-size: 0.95vw; font-weight: 600; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--label-3);
+}
+.group { border-radius: 1.3vw; background: rgba(255, 255, 255, 0.06); }
+.group + .group { margin-top: 1.2vw; }
+.item {
+  position: relative; width: 100%; min-height: 4.3vw; padding: 0.75vw 1.3vw;
+  display: flex; align-items: center; gap: 1.2vw;
+  font-size: 1.38vw; font-weight: 500;
+  transition: transform 0.4s var(--spring), background 0.18s, color 0.18s, box-shadow 0.3s;
+}
+.item:first-child { border-top-left-radius: 1.3vw; border-top-right-radius: 1.3vw; }
+.item:last-child { border-bottom-left-radius: 1.3vw; border-bottom-right-radius: 1.3vw; }
+.item + .item::before {
+  content: ""; position: absolute; top: 0; left: 4.9vw; right: 0; height: 1px; background: var(--separator);
+}
+.item.plain + .item::before { left: 1.3vw; }
+.item.check + .item::before { left: 4vw; }
+.badge {
+  width: 2.4vw; height: 2.4vw; flex: none; border-radius: 0.62vw;
+  display: grid; place-items: center; background: var(--b, var(--gray)); color: #fff;
+}
+.badge svg.i { width: 1.35vw; height: 1.35vw; stroke-width: 2.2; }
+.item .text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.15vw; }
+.item .text > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item .sub { font-size: 1.02vw; font-weight: 400; color: var(--label-2); }
+.item .value {
+  display: inline-flex; align-items: center; gap: 0.7vw; flex: none; max-width: 55%;
+  font-size: 1.25vw; font-weight: 400; color: var(--label-2); white-space: nowrap; overflow: hidden;
+}
+.item .chev { width: 1.2vw; height: 1.2vw; color: var(--label-3); stroke-width: 2.4; }
+.tick { width: 1.5vw !important; height: 1.5vw !important; color: var(--blue); stroke-width: 2.6 !important; }
+.lead-space { width: 1.5vw; flex: none; }
+.item:focus {
+  z-index: 1; background: rgba(255, 255, 255, 0.96); color: #000; border-radius: 1.1vw;
+  transform: scale(1.025); box-shadow: 0 1vw 2.6vw rgba(0, 0, 0, 0.4);
+}
+.item:focus::before, .item:focus + .item::before { opacity: 0; }
+.item:focus .sub, .item:focus .value, .item:focus .chev { color: rgba(0, 0, 0, 0.5); }
+.item.static { cursor: default; }
+.loading {
+  min-height: 4.3vw; display: flex; align-items: center; justify-content: center; gap: 0.8vw;
+  font-size: 1.2vw; color: var(--label-2);
+}
+.actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.9vw; margin-top: 1.6vw; }
+.btn {
+  min-width: 9vw; height: 3.8vw; padding: 0 1.8vw; border-radius: 1.9vw;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.6vw;
+  font-size: 1.28vw; font-weight: 600; background: var(--fill); color: var(--label);
+  transition: transform 0.4s var(--spring), background 0.18s, color 0.18s, box-shadow 0.3s;
+}
+.btn svg.i { width: 1.3vw; height: 1.3vw; stroke-width: 2.2; }
+.btn.primary { background: var(--blue); }
+.btn.destructive { color: #ff6961; }
+.btn:focus { background: rgba(255, 255, 255, 0.96); color: #000; transform: scale(1.07); box-shadow: 0 1vw 2.4vw rgba(0, 0, 0, 0.4); }
+.btn.destructive:focus { background: var(--red); color: #fff; }
+.btn[disabled] { opacity: 0.4; cursor: default; }
+.field { margin-bottom: 1.1vw; }
+.field label {
+  display: block; margin: 0 0 0.55vw 1.1vw; font-size: 0.95vw; font-weight: 600;
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--label-3);
+}
+.field .row { display: flex; gap: 0.8vw; }
+.input {
+  flex: 1; min-width: 0; width: 100%; height: 4vw; padding: 0 1.3vw; border: 0; border-radius: 1.1vw;
+  background: rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  font-size: 1.38vw; font-weight: 500; color: var(--label); user-select: text;
+  transition: background 0.18s, box-shadow 0.2s, color 0.18s;
+}
+.input::placeholder { color: var(--label-3); }
+.input:focus { background: rgba(255, 255, 255, 0.96); color: #000; box-shadow: 0 0 0 0.26vw rgba(10, 132, 255, 0.65); }
+.input:focus::placeholder { color: rgba(0, 0, 0, 0.35); }
+.segmented { display: flex; gap: 0.35vw; padding: 0.35vw; border-radius: 1.3vw; background: rgba(118, 118, 128, 0.2); }
+.segmented button {
+  flex: 1; height: 6vw; border-radius: 1vw;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.4vw;
+  font-size: 1.1vw; font-weight: 600; color: var(--label-2);
+  transition: transform 0.4s var(--spring), background 0.18s, color 0.18s, box-shadow 0.3s;
+}
+.segmented .aa { font-family: var(--display); font-weight: 600; line-height: 1; color: var(--label); }
+.segmented button.on { background: rgba(99, 99, 102, 0.85); color: var(--label); box-shadow: 0 0.3vw 0.9vw rgba(0, 0, 0, 0.28); }
+.segmented button:focus { background: rgba(255, 255, 255, 0.96); color: rgba(0, 0, 0, 0.6); transform: scale(1.05); }
+.segmented button:focus .aa { color: #000; }
+.status {
+  min-height: 2vw; margin-top: 1.2vw; display: flex; align-items: center; justify-content: center; gap: 0.7vw;
+  font-size: 1.15vw; font-weight: 500; color: var(--label-2); text-align: center;
+}
+.status:empty { margin-top: 0; min-height: 0; }
+.status.bad { color: #ff8f87; }
+.status.good { color: #5fe08a; }
+.spin { width: 1.6vw; height: 1.6vw; flex: none; animation: spin 0.9s steps(8) infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wallpaper" aria-hidden="true"><i class="a"></i><i class="b"></i><i class="c"></i><i class="tint"></i></div>
+<div class="screen">
+  <header class="top">
+    <div>
+      <div class="date" id="date"></div>
+      <div class="time" id="time"></div>
+    </div>
+    <div class="controls">
+      <button class="pill glass" id="netBtn" aria-label="Wi-Fi"></button>
+      <button class="circle glass" id="settingsBtn" aria-label="Settings"></button>
+      <button class="circle glass" id="powerBtn" aria-label="Power"></button>
+    </div>
+  </header>
+  <main>
+    <div class="editbar glass" id="editBar" hidden>
+      <span>Choose a tile to change, move or remove it.</span>
+      <button class="btn primary" id="editDone">Done</button>
+    </div>
+    <section class="tiles" id="tiles" aria-label="Apps"></section>
+    <form class="search glass" id="search" autocomplete="off">
+      <input id="q" type="text" placeholder="Search or enter website" spellcheck="false" autocomplete="off" aria-label="Search or enter website">
+    </form>
+  </main>
+  <footer class="hint">Press Home on your remote to come back here.</footer>
+</div>
+<div class="layer" id="layer" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<script>
+"use strict";
+const TOKEN = "__TV_TOKEN__";
+const $ = (sel, root) => (root || document).querySelector(sel);
+const $$ = (sel, root) => [...(root || document).querySelectorAll(sel)];
+const FOCUSABLE = "button:not([disabled]), input:not([disabled])";
+const layer = $("#layer");
+const sheet = $("#sheet");
+const DEFAULT_TINT = "#22336e";
+const SIZE_NAMES = { small: "Small", medium: "Medium", large: "Large" };
+
+// Icon shapes adapted from Feather Icons (MIT).
+const PATHS = {
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  power: '<path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>',
+  wifi: '<path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>',
+  wifiOff: '<line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>',
+  wired: '<rect x="9" y="2" width="6" height="6" rx="1"/><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><path d="M5 16v-3h14v3"/><line x1="12" y1="8" x2="12" y2="13"/>',
+  search: '<circle cx="11" cy="11" r="7.5"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  check: '<polyline points="20 6 9 17 4 12"/>',
+  sound: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>',
+  text: '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>',
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
+  info: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+  restart: '<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>',
+  monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+  left: '<polyline points="15 18 9 12 15 6"/>',
+  right: '<polyline points="9 18 15 12 9 6"/>',
+  trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  close: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+};
+const icon = (name, cls) => `<svg class="i${cls ? " " + cls : ""}" viewBox="0 0 24 24" aria-hidden="true">${PATHS[name]}</svg>`;
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+function spinner() {
+  let spokes = "";
+  for (let k = 0; k < 8; k++) {
+    spokes += `<line x1="12" y1="2.6" x2="12" y2="7" opacity="${((k + 1) / 8).toFixed(2)}" transform="rotate(${k * 45} 12 12)"/>`;
+  }
+  return `<svg class="spin" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">${spokes}</svg>`;
+}
+
+function wifiGlyph(signal) {
+  const level = signal >= 67 ? 3 : signal >= 34 ? 2 : 1;
+  const arcs = ["M8.5 16.1a5 5 0 0 1 7 0", "M5.2 12.6a9.8 9.8 0 0 1 13.6 0", "M1.9 9.1a14.6 14.6 0 0 1 20.2 0"];
+  return `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="19.6" r="1.5" fill="currentColor" stroke="none"/>` +
+    arcs.map((d, k) => `<path d="${d}" opacity="${k < level ? 1 : 0.28}"/>`).join("") + "</svg>";
+}
+
+let state = { tiles: [], settings: { text_size: "medium" }, net: {}, windows: false, update_pending: false, host: "tvstick", build: "" };
+let loaded = false;
+let editing = false;
+let sheetGen = 0;
+let sheetBack = null;
+let returnFocus = null;
+let lastKey = 0;
+let lastInput = Date.now();
+let wifiPrompted = false;
+const pageStart = Date.now();
+
+/* ---------- talking to tvd ---------- */
+
+function reloadSoon() {
+  // tvd restarted and has a new token; a fresh copy of the page carries it.
+  let last = 0;
+  try { last = Number(sessionStorage.getItem("tv-reload") || 0); } catch (e) { /* storage off */ }
+  if (Date.now() - last < 10000) return;
+  try { sessionStorage.setItem("tv-reload", String(Date.now())); } catch (e) { /* storage off */ }
+  setTimeout(() => location.reload(), 500);
+}
+
+async function api(path, body) {
+  const opts = { headers: { "X-TV-Token": TOKEN } };
+  if (body !== undefined) {
+    opts.method = "POST";
+    opts.headers["Content-Type"] = "application/json";
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(path, opts);
+  if (res.status === 403) {
+    reloadSoon();
+    throw new Error("expired");
+  }
+  return res.json();
+}
+
+/* ---------- clock and status ---------- */
+
+function tick() {
+  const now = new Date();
+  $("#time").textContent = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  $("#date").textContent = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+}
+
+function netLabel() {
+  const n = state.net || {};
+  if (n.wired) return { glyph: icon("wired"), text: "Wired", online: true };
+  if (n.wifi) return { glyph: wifiGlyph(n.signal == null ? 100 : n.signal), text: n.wifi, online: true };
+  if (!loaded) return { glyph: icon("wifi"), text: "Starting", online: true };
+  return { glyph: icon("wifiOff"), text: n.has_wifi === false ? "No Network" : "Not Connected", online: false };
+}
+
+function renderStatus() {
+  const l = netLabel();
+  const b = $("#netBtn");
+  b.innerHTML = `${l.glyph}<span>${esc(l.text)}</span>`;
+  b.classList.toggle("offline", !l.online);
+}
+
+/* ---------- tiles ---------- */
+
+// Vector logos for the two default tiles, so they stay sharp on a big screen.
+// Netflix only publishes a 64 px icon.
+const GLYPHS = [
+  [/(^|\.)netflix\.com$/, '<svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="nfShade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e50914"/><stop offset="1" stop-color="#c30812"/></linearGradient></defs><path d="M24 4h17v89.5c-5.4.3-11.1 1-17 1.9z" fill="#b1060f"/><path d="M59 4h17v91.4c-5.6-.9-11.3-1.4-17-1.7z" fill="#b1060f"/><path d="M24 4h17l35 91.4c-5.6-.9-11.3-1.4-17-1.7z" fill="url(#nfShade)"/></svg>'],
+  [/(^|\.)(youtube\.com|youtu\.be)$/, '<svg viewBox="0 0 100 70" aria-hidden="true"><rect width="100" height="70" rx="17" fill="#ff0033"/><path d="M40 20.5 66 35 40 49.5z" fill="#fff"/></svg>'],
+];
+const glyphFor = (host) => { for (const [re, svg] of GLYPHS) if (re.test(host)) return svg; return null; };
+
+const BRANDS = [
+  [/(^|\.)netflix\.com$/, "#000000"],
+  [/(^|\.)(youtube\.com|youtu\.be)$/, "#1b1b1d"],
+  [/(^|\.)twitch\.tv$/, "#3c2373"],
+  [/(^|\.)disneyplus\.com$/, "#0b1c46"],
+  [/(^|\.)primevideo\.com$/, "#0d1a2c"],
+  [/(^|\.)(max|hbomax)\.com$/, "#0c1a96"],
+  [/(^|\.)spotify\.com$/, "#121212"],
+  [/(^|\.)crunchyroll\.com$/, "#3a1a08"],
+];
+const hostOf = (url) => { try { return new URL(url).hostname; } catch (e) { return ""; } };
+const brandColor = (host) => { for (const [re, c] of BRANDS) if (re.test(host)) return c; return null; };
+
+function hashColor(s) {
+  let h = 7;
+  for (const ch of s) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+  return `hsl(${h % 360} 36% 26%)`;
+}
+
+function colorFromImage(img) {
+  try {
+    const c = document.createElement("canvas");
+    c.width = c.height = 24;
+    const g = c.getContext("2d");
+    g.drawImage(img, 0, 0, 24, 24);
+    const d = g.getImageData(0, 0, 24, 24).data;
+    let r = 0, gr = 0, b = 0, n = 0;
+    for (let k = 0; k < d.length; k += 4) {
+      if (d[k + 3] < 200) continue;
+      const hi = Math.max(d[k], d[k + 1], d[k + 2]);
+      const lo = Math.min(d[k], d[k + 1], d[k + 2]);
+      if (hi - lo < 28) continue; // greys, white and black say nothing about the brand
+      r += d[k]; gr += d[k + 1]; b += d[k + 2]; n++;
+    }
+    if (n < 6) return null;
+    const f = 0.42;
+    return `rgb(${Math.round((r / n) * f)}, ${Math.round((gr / n) * f)}, ${Math.round((b / n) * f)})`;
+  } catch (e) {
+    return null;
+  }
+}
+
+function tileEl(t, i) {
+  const host = hostOf(t.url);
+  const color = brandColor(host) || hashColor(host || t.name);
+  const tile = document.createElement("button");
+  tile.className = "tile";
+  tile.dataset.tint = color;
+  tile.setAttribute("aria-label", t.name);
+  tile.innerHTML = '<div class="wiggle"><div class="icon"><span class="mono"></span></div></div><span class="name"></span>';
+  const iconEl = $(".icon", tile);
+  iconEl.style.setProperty("--c", color);
+  $(".mono", tile).textContent = (t.name.trim()[0] || "?").toUpperCase();
+  $(".name", tile).textContent = t.name;
+  const svg = glyphFor(host);
+  if (svg) {
+    $(".mono", tile).remove();
+    iconEl.insertAdjacentHTML("beforeend", `<div class="art vector">${svg}</div><div class="glyph vector">${svg}</div>`);
+  } else if (host) {
+    const img = new Image();
+    img.alt = "";
+    img.onload = () => {
+      if (!brandColor(host)) {
+        const c = colorFromImage(img);
+        if (c) {
+          iconEl.style.setProperty("--c", c);
+          tile.dataset.tint = c;
+          if (document.activeElement === tile) setTint(c);
+        }
+      }
+      // Tiny favicons look blurry blown up; the letter looks better then.
+      if (img.naturalWidth === 0 || img.naturalWidth >= 48) {
+        const art = img.cloneNode();
+        art.className = "art";
+        img.className = "glyph";
+        const mono = $(".mono", tile);
+        if (mono) mono.remove();
+        iconEl.append(art, img);
+      }
+    };
+    img.src = `/icon/${encodeURIComponent(host)}?t=${encodeURIComponent(TOKEN)}`;
+  }
+  tile.addEventListener("click", () => (editing ? openTileEditor(i) : go(t.url)));
+  return tile;
+}
+
+function renderTiles(focusIndex) {
+  const wrap = $("#tiles");
+  wrap.classList.toggle("editing", editing);
+  const add = document.createElement("button");
+  add.className = "tile add-tile";
+  add.dataset.tint = DEFAULT_TINT;
+  add.setAttribute("aria-label", "Add Website");
+  add.innerHTML = `<div class="wiggle"><div class="icon add">${icon("plus")}</div></div><span class="name">Add Website</span>`;
+  add.addEventListener("click", () => openTileEditor(-1));
+  wrap.replaceChildren(...state.tiles.map(tileEl), add);
+  wrap.classList.toggle("scroll", state.tiles.length + 1 > 10);
+  if (focusIndex != null) {
+    const all = $$(".tile", wrap);
+    const el = all[Math.max(0, Math.min(focusIndex, all.length - 1))];
+    if (el) el.focus();
+  }
+}
+
+function setTint(color) {
+  document.documentElement.style.setProperty("--tint", color || DEFAULT_TINT);
+}
+
+function go(url) {
+  location.href = url;
+}
+
+function focusHome() {
+  const t = $("#tiles .tile");
+  (t || $("#q")).focus({ preventScroll: true });
+}
+
+/* ---------- refresh ---------- */
+
+async function refresh() {
+  let s;
+  try { s = await api("/api/state"); } catch (e) { return; }
+  const first = !loaded;
+  loaded = true;
+  const tilesChanged = JSON.stringify(s.tiles) !== JSON.stringify(state.tiles);
+  state = s;
+  renderStatus();
+  if ((first || tilesChanged) && !editing && layer.hidden) {
+    const tiles = $$("#tiles .tile");
+    const a = document.activeElement;
+    const idx = tiles.indexOf(a);
+    const elsewhere = a && a !== document.body && idx < 0;
+    renderTiles(idx >= 0 ? idx : elsewhere ? null : 0);
+  }
+  maybePromptWifi();
+  maybeRestartBrowser();
+}
+
+function maybePromptWifi() {
+  const n = state.net || {};
+  if (wifiPrompted || n.online || !n.has_wifi || n.wifi_saved > 0 || !layer.hidden) return;
+  if (Date.now() - pageStart < 8000) return; // a cable or a known network may still be connecting
+  wifiPrompted = true;
+  openWifi(null, true);
+}
+
+function maybeRestartBrowser() {
+  // Firefox updated itself on disk. Restart it while nobody is using the screen.
+  if (!state.update_pending || !layer.hidden || editing) return;
+  if (document.visibilityState !== "visible" || Date.now() - lastInput < 20000) return;
+  api("/api/browser/restart", {}).catch(() => {});
+}
+
+/* ---------- sheets ---------- */
+
+function sheetHead(title, withBack) {
+  const back = withBack ? `<button class="circle" data-act="back" aria-label="Back">${icon("left")}</button>` : "<span></span>";
+  return `<div class="sheet-head">${back}<h2>${esc(title)}</h2><button class="circle" data-act="close" aria-label="Close">${icon("close")}</button></div>`;
+}
+
+function openSheet(html, back) {
+  if (layer.hidden) {
+    returnFocus = document.activeElement;
+    sheet.classList.remove("swap");
+  } else {
+    sheet.classList.remove("swap");
+    void sheet.offsetWidth;
+    sheet.classList.add("swap");
+  }
+  sheetGen++;
+  sheetBack = back || null;
+  sheet.innerHTML = html;
+  layer.hidden = false;
+  setTint(null);
+  focusFirst();
+  return sheetGen;
+}
+
+function focusFirst() {
+  const all = $$(FOCUSABLE, sheet);
+  const first = $("[data-first]:not([disabled])", sheet) || all.find((el) => !el.closest(".sheet-head")) || all[0];
+  if (first) first.focus({ preventScroll: true });
+}
+
+function closeSheet() {
+  sheetGen++;
+  layer.hidden = true;
+  sheet.innerHTML = "";
+  sheetBack = null;
+  if (returnFocus && document.body.contains(returnFocus) && returnFocus !== document.body) returnFocus.focus({ preventScroll: true });
+  else focusHome();
+  returnFocus = null;
+}
+
+function goBack() {
+  if (sheetBack) sheetBack();
+  else closeSheet();
+}
+
+function setStatus(text, kind, busy) {
+  const s = $("#status", sheet);
+  if (!s) return;
+  s.className = "status" + (kind ? " " + kind : "");
+  s.innerHTML = (busy ? spinner() : "") + `<span>${esc(text)}</span>`;
+}
+
+const badge = (name, color) => `<span class="badge" style="--b:${color}">${icon(name)}</span>`;
+const chev = () => icon("right", "chev");
+const value = (text) => `<span class="value">${esc(text)}</span>`;
+
+function item(title, o) {
+  o = o || {};
+  const lead = o.lead || "";
+  const cls = (o.cls || "") + (lead ? "" : " plain");
+  const sub = o.sub ? `<span class="sub">${esc(o.sub)}</span>` : "";
+  const trail = o.trail == null ? chev() : o.trail;
+  return `<button class="item ${cls}" ${o.attrs || ""}>${lead}<span class="text"><span>${esc(title)}</span>${sub}</span>${trail}</button>`;
+}
+
+const staticRow = (k, v) => `<div class="item static plain"><span class="text"><span>${esc(k)}</span></span>${value(v)}</div>`;
+
+function openSettings() {
+  const l = netLabel();
+  openSheet(sheetHead("Settings") + `
+    <div class="group">
+      ${item("Wi-Fi", { lead: badge("wifi", "var(--blue)"), trail: value(l.online ? l.text : "Not Connected") + chev(), attrs: 'data-go="wifi"' })}
+      ${item("Sound Output", { lead: badge("sound", "var(--pink)"), attrs: 'data-go="sound"' })}
+      ${item("Text Size", { lead: badge("text", "var(--indigo)"), trail: value(SIZE_NAMES[state.settings.text_size] || "Medium") + chev(), attrs: 'data-go="text"' })}
+    </div>
+    <div class="group">
+      ${item("Edit Home Screen", { lead: badge("grid", "var(--orange)"), attrs: 'data-go="edit"' })}
+      ${item("About", { lead: badge("info", "var(--gray)"), attrs: 'data-go="about"' })}
+    </div>`);
+  $$("[data-go]", sheet).forEach((b) => b.addEventListener("click", () => {
+    const where = b.dataset.go;
+    if (where === "wifi") openWifi(openSettings, false);
+    else if (where === "sound") openSound(openSettings);
+    else if (where === "text") openTextSize(openSettings);
+    else if (where === "about") openAbout(openSettings);
+    else if (where === "edit") {
+      closeSheet();
+      setEditing(true);
+    }
+  }));
+}
+
+async function openWifi(back, firstRun) {
+  const gen = openSheet(sheetHead(firstRun ? "Connect to Wi-Fi" : "Wi-Fi", !!back) +
+    (firstRun ? '<p class="note">Choose your network to get started, or plug in a network cable.</p>' : "") +
+    `<div class="caption">Networks</div>
+     <div class="group" id="wifiList"><div class="loading">${spinner()}<span>Looking for networks</span></div></div>
+     <div class="actions"><button class="btn" id="rescan">${icon("restart")}Search Again</button></div>`, back);
+  $("#rescan", sheet).addEventListener("click", () => openWifi(back, firstRun));
+  let data;
+  try { data = await api("/api/wifi"); } catch (e) { data = { networks: [] }; }
+  if (gen !== sheetGen) return;
+  const list = $("#wifiList", sheet);
+  const nets = data.networks || [];
+  if (!nets.length) {
+    list.innerHTML = '<div class="loading"><span>No networks found. Try again in a moment.</span></div>';
+    return;
+  }
+  list.innerHTML = nets.map((n, k) => item(n.ssid, {
+    lead: n.active ? icon("check", "tick") : '<span class="lead-space"></span>',
+    trail: `<span class="value">${n.secure ? icon("lock", "small") : ""}${wifiGlyph(n.signal)}</span>`,
+    attrs: `data-k="${k}"`,
+    cls: "check",
+  })).join("");
+  $$("[data-k]", list).forEach((b) => b.addEventListener("click", () => {
+    const n = nets[Number(b.dataset.k)];
+    if (n.active) return;
+    const backTo = () => openWifi(back, firstRun);
+    if (n.secure) openWifiPassword(n, backTo);
+    else joinWifi(n, "", backTo, true);
+  }));
+  const a = document.activeElement;
+  if (!a || a === document.body || a.id === "rescan") {
+    const firstNet = $("[data-k]", list);
+    if (firstNet) firstNet.focus({ preventScroll: true });
+  }
+}
+
+function openWifiPassword(n, backTo) {
+  openSheet(sheetHead(n.ssid, true) + `
+    <p class="note">Enter the password for this network.</p>
+    <div class="field"><label for="pw">Password</label>
+      <div class="row"><input class="input" id="pw" type="password" autocomplete="off" spellcheck="false" data-first>
+      <button class="btn" id="showPw">Show</button></div></div>
+    <div class="actions"><button class="btn primary" id="join">Join</button></div>
+    <div class="status" id="status"></div>`, backTo);
+  const pw = $("#pw", sheet);
+  const show = $("#showPw", sheet);
+  show.addEventListener("click", () => {
+    const hidden = pw.type === "password";
+    pw.type = hidden ? "text" : "password";
+    show.textContent = hidden ? "Hide" : "Show";
+  });
+  pw.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      joinWifi(n, pw.value, backTo);
+    }
+  });
+  $("#join", sheet).addEventListener("click", () => joinWifi(n, pw.value, backTo));
+}
+
+async function joinWifi(n, password, backTo, fresh) {
+  if (fresh) openSheet(sheetHead(n.ssid, true) + '<div class="status" id="status"></div>', backTo);
+  const gen = sheetGen;
+  $$(FOCUSABLE, sheet).forEach((el) => { if (!el.closest(".sheet-head")) el.disabled = true; });
+  setStatus(`Joining ${n.ssid}`, "", true);
+  let r;
+  try { r = await api("/api/wifi", { ssid: n.ssid, password }); } catch (e) { r = { ok: false, error: "The TV stick didn't answer. Try again." }; }
+  if (gen !== sheetGen) return;
+  $$("button, input", sheet).forEach((el) => { el.disabled = false; });
+  if (r.ok) {
+    setStatus(`Connected to ${n.ssid}`, "good");
+    refresh();
+    setTimeout(() => { if (gen === sheetGen) closeSheet(); }, 1400);
+  } else {
+    setStatus(r.error || "That didn't work.", "bad");
+    const pw = $("#pw", sheet);
+    if (pw) {
+      pw.focus();
+      pw.select();
+    } else {
+      focusFirst();
+    }
+  }
+}
+
+async function openSound(back) {
+  const gen = openSheet(sheetHead("Sound Output", true) +
+    `<div class="group" id="soundList"><div class="loading">${spinner()}<span>Checking outputs</span></div></div>
+     <div class="status" id="status"></div>`, back);
+  let data;
+  try { data = await api("/api/audio"); } catch (e) { data = { outputs: [] }; }
+  if (gen !== sheetGen) return;
+  const outs = data.outputs || [];
+  const list = $("#soundList", sheet);
+  if (!outs.length) {
+    list.innerHTML = '<div class="loading"><span>No sound outputs found.</span></div>';
+    return;
+  }
+  list.innerHTML = outs.map((o, k) => item(o.name, {
+    lead: o.active ? icon("check", "tick") : '<span class="lead-space"></span>',
+    sub: o.available ? "" : "Nothing connected",
+    trail: "",
+    attrs: `data-k="${k}"${o.active ? " data-first" : ""}`,
+    cls: "check",
+  })).join("");
+  $$("[data-k]", list).forEach((b) => b.addEventListener("click", async () => {
+    const o = outs[Number(b.dataset.k)];
+    if (o.active) return;
+    setStatus("Switching", "", true);
+    let r;
+    try { r = await api("/api/audio", { id: o.id }); } catch (e) { r = { ok: false }; }
+    if (gen !== sheetGen) return;
+    if (r.ok) openSound(back);
+    else setStatus(r.error || "Couldn't switch the sound.", "bad");
+  }));
+  focusFirst();
+}
+
+function openTextSize(back) {
+  const cur = state.settings.text_size || "medium";
+  const glyph = { small: 1.5, medium: 2.1, large: 2.8 };
+  openSheet(sheetHead("Text Size", true) + `
+    <p class="note">How large websites look from your couch. The browser restarts for a moment to apply it.</p>
+    <div class="segmented">${Object.keys(SIZE_NAMES).map((s) =>
+      `<button data-size="${s}" class="${s === cur ? "on" : ""}"${s === cur ? " data-first" : ""}><span class="aa" style="font-size:${glyph[s]}vw">Aa</span><span>${SIZE_NAMES[s]}</span></button>`
+    ).join("")}</div>
+    <div class="status" id="status"></div>`, back);
+  $$("[data-size]", sheet).forEach((b) => b.addEventListener("click", async () => {
+    const size = b.dataset.size;
+    let r;
+    try { r = await api("/api/settings", { text_size: size }); } catch (e) { r = { ok: false }; }
+    if (!r.ok) {
+      setStatus(r.error || "Couldn't save that.", "bad");
+      return;
+    }
+    state.settings.text_size = size;
+    $$("[data-size]", sheet).forEach((x) => x.classList.toggle("on", x === b));
+    if (r.restarting) setStatus("Restarting the browser", "", true);
+    else setStatus("Already set", "good");
+  }));
+}
+
+function openAbout(back) {
+  const n = state.net || {};
+  const l = netLabel();
+  openSheet(sheetHead("About", true) + `
+    <div class="group">
+      ${staticRow("Network", l.online ? l.text : "Not Connected")}
+      ${staticRow("IP Address", n.ip || "None")}
+      ${staticRow("Name on Network", state.host + ".local")}
+      ${staticRow("Software", "Debian 13, built " + state.build)}
+    </div>
+    <p class="note" style="margin-top:1.4vw">Press Home on your remote at any time to come back to this screen.</p>`, back);
+}
+
+function openPower() {
+  const rows = [
+    item("Turn Off", { lead: badge("power", "var(--red)"), trail: "", attrs: 'data-power="off"' }),
+    item("Restart", { lead: badge("restart", "var(--gray)"), trail: "", attrs: 'data-power="restart"' }),
+  ];
+  if (state.windows) {
+    rows.push(item("Restart in Windows", {
+      lead: badge("monitor", "var(--blue)"),
+      sub: "Windows starts once. Restart it to come back here.",
+      trail: "",
+      attrs: 'data-power="windows"',
+    }));
+  }
+  openSheet(sheetHead("Power") + `<div class="group">${rows.join("")}</div><div class="status" id="status"></div>`);
+  $$("[data-power]", sheet).forEach((b) => b.addEventListener("click", async () => {
+    const action = b.dataset.power;
+    setStatus({ off: "Turning off", restart: "Restarting", windows: "Starting Windows" }[action], "", true);
+    let r;
+    try { r = await api("/api/power", { action }); } catch (e) { r = { ok: false }; }
+    if (!r.ok) setStatus(r.error || "That didn't work.", "bad");
+  }));
+}
+
+function niceName(host) {
+  const parts = host.replace(/^www\./, "").split(".");
+  const base = parts.length > 2 ? parts[parts.length - 2] : parts[0];
+  return base.charAt(0).toUpperCase() + base.slice(1);
+}
+
+async function commitTiles(tiles, focusIndex) {
+  let r = null;
+  try { r = await api("/api/tiles", { tiles }); } catch (e) { r = null; }
+  if (!r || !r.ok) {
+    setStatus("Couldn't save the home screen.", "bad");
+    return;
+  }
+  state.tiles = r.tiles;
+  sheetGen++;
+  layer.hidden = true;
+  sheet.innerHTML = "";
+  sheetBack = null;
+  returnFocus = null;
+  renderTiles(focusIndex);
+}
+
+function openTileEditor(i) {
+  const isNew = i < 0;
+  const t = isNew ? { name: "", url: "" } : state.tiles[i];
+  const last = state.tiles.length - 1;
+  openSheet(sheetHead(isNew ? "Add Website" : "Edit Tile") + `
+    <div class="field"><label for="tUrl">Website</label>
+      <input class="input" id="tUrl" value="${esc(t.url)}" placeholder="example.com" spellcheck="false" autocomplete="off"${isNew ? " data-first" : ""}></div>
+    <div class="field"><label for="tName">Name</label>
+      <input class="input" id="tName" maxlength="40" value="${esc(t.name)}" placeholder="Shown under the tile" autocomplete="off"${isNew ? "" : " data-first"}></div>
+    <div class="actions">
+      ${isNew ? "" : `<button class="btn" id="tLeft"${i === 0 ? " disabled" : ""}>${icon("left")}Move Left</button>
+      <button class="btn" id="tRight"${i === last ? " disabled" : ""}>Move Right${icon("right")}</button>`}
+      <button class="btn primary" id="tSave">${isNew ? "Add" : "Save"}</button>
+      ${isNew ? "" : `<button class="btn destructive" id="tDel">${icon("trash")}<span>Remove</span></button>`}
+    </div>
+    <div class="status" id="status"></div>`);
+  const urlIn = $("#tUrl", sheet);
+  const nameIn = $("#tName", sheet);
+
+  const save = () => {
+    let u = urlIn.value.trim();
+    let n = nameIn.value.trim();
+    if (!u) {
+      setStatus("Type the website's address, like example.com.", "bad");
+      urlIn.focus();
+      return;
+    }
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(u)) u = "https://" + u;
+    const host = hostOf(u);
+    if (!host || !host.includes(".")) {
+      setStatus("That doesn't look like a website address.", "bad");
+      urlIn.focus();
+      return;
+    }
+    if (!n) n = niceName(host);
+    const tiles = state.tiles.slice();
+    if (isNew) tiles.push({ name: n, url: u });
+    else tiles[i] = { name: n, url: u };
+    commitTiles(tiles, isNew ? tiles.length - 1 : i);
+  };
+  const move = (to) => {
+    if (to < 0 || to > last) return;
+    const tiles = state.tiles.slice();
+    const [moved] = tiles.splice(i, 1);
+    tiles.splice(to, 0, moved);
+    commitTiles(tiles, to);
+  };
+
+  for (const el of [urlIn, nameIn]) {
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        save();
+      }
+    });
+  }
+  $("#tSave", sheet).addEventListener("click", save);
+  if (!isNew) {
+    $("#tLeft", sheet).addEventListener("click", () => move(i - 1));
+    $("#tRight", sheet).addEventListener("click", () => move(i + 1));
+    const del = $("#tDel", sheet);
+    del.addEventListener("click", () => {
+      if (del.dataset.armed) {
+        commitTiles(state.tiles.filter((_, k) => k !== i), Math.max(0, i - 1));
+        return;
+      }
+      del.dataset.armed = "1";
+      $("span", del).textContent = "Press Again to Remove";
+    });
+  }
+}
+
+function setEditing(on) {
+  editing = on;
+  $("#editBar").hidden = !on;
+  renderTiles(0);
+}
+
+/* ---------- moving around with the remote ---------- */
+
+function visible(el) {
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+}
+
+function moveFocus(dir) {
+  const items = (layer.hidden ? $$(FOCUSABLE).filter((el) => !layer.contains(el)) : $$(FOCUSABLE, sheet)).filter(visible);
+  const cur = document.activeElement;
+  if (!items.includes(cur)) {
+    const first = items.find((el) => el.classList.contains("tile") || el.classList.contains("item")) || items[0];
+    if (first) first.focus();
+    return;
+  }
+  const a = cur.getBoundingClientRect();
+  const ax = a.left + a.width / 2;
+  const ay = a.top + a.height / 2;
+  let best = null;
+  let bestScore = Infinity;
+  for (const el of items) {
+    if (el === cur) continue;
+    const b = el.getBoundingClientRect();
+    const dx = b.left + b.width / 2 - ax;
+    const dy = b.top + b.height / 2 - ay;
+    let along;
+    let across;
+    if (dir === "left") { along = -dx; across = Math.abs(dy); }
+    else if (dir === "right") { along = dx; across = Math.abs(dy); }
+    else if (dir === "up") { along = -dy; across = Math.abs(dx); }
+    else { along = dy; across = Math.abs(dx); }
+    if (along <= 1) continue;
+    const score = along + across * 2;
+    if (score < bestScore) {
+      bestScore = score;
+      best = el;
+    }
+  }
+  if (best) best.focus();
+}
+
+document.addEventListener("keydown", (e) => {
+  lastInput = Date.now();
+  const a = document.activeElement;
+  const typing = a && a.tagName === "INPUT";
+  if (typing) lastKey = Date.now();
+  const k = e.key;
+  if (k === "Escape" || k === "BrowserBack" || k === "GoBack" || (k === "Backspace" && !typing)) {
+    if (!layer.hidden) {
+      e.preventDefault();
+      goBack();
+    } else if (editing) {
+      e.preventDefault();
+      setEditing(false);
+    } else if (typing && k === "Escape") {
+      a.value = "";
+      focusHome();
+    }
+    return;
+  }
+  const dirs = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" };
+  if (dirs[k]) {
+    if (typing && (k === "ArrowLeft" || k === "ArrowRight")) return;
+    e.preventDefault();
+    moveFocus(dirs[k]);
+    return;
+  }
+  // Start typing anywhere on the home screen to search.
+  if (!typing && layer.hidden && !editing && k.length === 1 && k !== " " && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    $("#q").focus();
+  }
+});
+
+document.addEventListener("pointermove", (e) => {
+  if (!e.movementX && !e.movementY) return; // layout changes fire fake moves; ignore them
+  lastInput = Date.now();
+  const el = e.target.closest && e.target.closest(FOCUSABLE);
+  const inScope = el && (layer.hidden ? !layer.contains(el) : sheet.contains(el));
+  const a = document.activeElement;
+  const midTyping = a && a.tagName === "INPUT" && Date.now() - lastKey < 4000;
+  if (inScope && el !== a && el.tagName !== "INPUT" && !midTyping) el.focus({ preventScroll: true });
+  const tile = e.target.closest && e.target.closest(".tile");
+  if (tile && tile === document.activeElement) {
+    const ic = $(".icon", tile);
+    const r = ic.getBoundingClientRect();
+    const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) - 0.5;
+    const y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) - 0.5;
+    ic.style.setProperty("--ry", (x * 12).toFixed(2) + "deg");
+    ic.style.setProperty("--rx", (-y * 12).toFixed(2) + "deg");
+    ic.style.setProperty("--mx", ((x + 0.5) * 100).toFixed(1) + "%");
+    ic.style.setProperty("--my", ((y + 0.5) * 100).toFixed(1) + "%");
+  }
+}, { passive: true });
+
+document.addEventListener("focusin", (e) => {
+  const tile = e.target.closest && e.target.closest(".tile");
+  if (tile) setTint(tile.dataset.tint);
+  else if (layer.hidden) setTint(null);
+});
+
+document.addEventListener("focusout", (e) => {
+  const tile = e.target.closest && e.target.closest(".tile");
+  if (!tile) return;
+  const ic = $(".icon", tile);
+  for (const p of ["--rx", "--ry", "--mx", "--my"]) ic.style.removeProperty(p);
+});
+
+sheet.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-act]");
+  if (!b) return;
+  if (b.dataset.act === "close") closeSheet();
+  else if (b.dataset.act === "back") goBack();
+});
+layer.addEventListener("click", (e) => { if (e.target === layer) closeSheet(); });
+
+$("#search").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const q = $("#q").value.trim();
+  if (!q) return;
+  const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(q);
+  const looksLikeSite = !/\s/.test(q) && (hasScheme || /^[\w-]+(\.[\w-]+)+(:\d+)?(\/\S*)?$/.test(q));
+  go(looksLikeSite ? (hasScheme ? q : "https://" + q) : "https://www.google.com/search?q=" + encodeURIComponent(q));
+});
+
+/* ---------- start ---------- */
+
+$("#search").insertAdjacentHTML("afterbegin", icon("search"));
+$("#settingsBtn").innerHTML = icon("settings");
+$("#powerBtn").innerHTML = icon("power");
+$("#netBtn").addEventListener("click", () => openWifi(null, false));
+$("#settingsBtn").addEventListener("click", openSettings);
+$("#powerBtn").addEventListener("click", openPower);
+$("#editDone").addEventListener("click", () => setEditing(false));
+tick();
+setInterval(tick, 1000);
+renderStatus();
+refresh();
+setTimeout(refresh, 9000);
+setInterval(refresh, 15000);
+</script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""Sets how large Firefox draws pages, and the pointer size, from the TV's
+resolution and the text size chosen in Settings. tv-browser calls this before
+each Firefox start."""
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+FACTORS = {"small": 0.85, "medium": 1.0, "large": 1.2}
+
+
+def output_height():
+    try:
+        out = subprocess.run(["swaymsg", "-r", "-t", "get_outputs"], capture_output=True,
+                             text=True, timeout=5).stdout
+        for o in json.loads(out):
+            if o.get("active") and o.get("current_mode"):
+                return int(o["current_mode"]["height"])
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
+        pass
+    return 1080
+
+
+def main():
+    profile = Path(sys.argv[1])
+    try:
+        size = json.loads(Path("/var/lib/tv/settings.json").read_text()).get("text_size", "medium")
+    except (OSError, ValueError, AttributeError):
+        size = "medium"
+    height = output_height()
+    # 1080p comes out at 1.5, so pages look like a 1280-wide laptop screen from the couch.
+    scale = round(height / 720 * FACTORS.get(size, 1.0), 2)
+    cursor = max(24, round(height / 1080 * 48))
+    subprocess.run(["swaymsg", "seat seat0 xcursor_theme Adwaita %d" % cursor], capture_output=True)
+    user_js = profile / "user.js"
+    lines = []
+    if user_js.exists():
+        lines = [l for l in user_js.read_text().splitlines() if "layout.css.devPixelsPerPx" not in l]
+    lines.append('user_pref("layout.css.devPixelsPerPx", "%s");' % scale)
+    user_js.write_text("\n".join(lines) + "\n")
+
+
+main()

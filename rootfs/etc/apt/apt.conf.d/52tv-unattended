@@ -1,0 +1,7 @@
+// Firefox updates come from Mozilla's repository. Debian's security updates
+// are already on the list in 50unattended-upgrades.
+Unattended-Upgrade::Origins-Pattern {
+        "site=packages.mozilla.org";
+};
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+Unattended-Upgrade::Automatic-Reboot "false";

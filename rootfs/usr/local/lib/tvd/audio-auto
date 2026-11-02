@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""Sends sound to the TV over HDMI when the session starts, unless an output
+was picked by hand in Settings. Mini PCs tend to default to the headphone jack."""
+import json
+import subprocess
+import time
+from pathlib import Path
+
+
+def pactl(*args):
+    try:
+        p = subprocess.run(["pactl"] + list(args), capture_output=True, text=True, timeout=8)
+        return p.returncode, p.stdout
+    except (OSError, subprocess.SubprocessError):
+        return -1, ""
+
+
+def pactl_json(*args):
+    code, out = pactl("-f", "json", *args)
+    try:
+        data = json.loads(out) if code == 0 else []
+    except ValueError:
+        return []
+    return data if isinstance(data, list) else []
+
+
+def available(sink):
+    active = sink.get("active_port")
+    for port in sink.get("ports") or []:
+        if port.get("name") == active:
+            return port.get("availability") != "not available"
+    return True
+
+
+def main():
+    try:
+        if json.loads(Path("/var/lib/tv/settings.json").read_text()).get("audio_manual"):
+            return
+    except (OSError, ValueError, AttributeError):
+        pass
+    for _ in range(30):
+        if pactl("info")[0] == 0:
+            break
+        time.sleep(1)
+    time.sleep(3)  # let WirePlumber finish its own setup first
+    for attempt in range(2):
+        hdmi = [s for s in pactl_json("list", "sinks")
+                if "hdmi" in (s.get("name", "") + s.get("description", "")).lower() and available(s)]
+        if hdmi:
+            pactl("set-default-sink", hdmi[0]["name"])
+            return
+        if attempt:
+            return
+        # No HDMI output yet: switch a sound card to an HDMI profile that sees a screen.
+        for card in pactl_json("list", "cards"):
+            options = [(p.get("priority", 0), name) for name, p in (card.get("profiles") or {}).items()
+                       if name.startswith("output:hdmi") and "+" not in name
+                       and p.get("available") not in (False, "no") and p.get("sinks")]
+            if options:
+                pactl("set-card-profile", card.get("name", ""), max(options)[1])
+                time.sleep(1.5)
+                break
+
+
+main()
