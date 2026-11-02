@@ -16,6 +16,7 @@ COMPONENTS="main contrib non-free non-free-firmware"
 TV_HOSTNAME=tvstick
 TIMEZONE=Europe/Berlin
 MOZILLA_KEY_FPR=35BAA0B33E9EB396F59CA838C0BA5CE6DC6315A3
+NORDVPN_KEY_FPR=BC5480EFEC5C081CE5BCFBE26B219E535C964CA1
 ESP_MB=256
 
 log() { printf '\n==> %s\n' "$*"; }
@@ -58,7 +59,7 @@ mkdir -p "$WORK" "$OUT" "$CACHE"
 
 # The base system (Debian packages, Firefox, uBlock Origin) is cached, so changing
 # the TV files only takes a minute. ./build.sh --fresh starts from scratch.
-KEY=$(sha256sum "$SRC/vm/packages.txt" | cut -c1-16)
+KEY=$({ cat "$SRC/vm/packages.txt"; echo "extras: firefox ublock-origin nordvpn"; } | sha256sum | cut -c1-16)
 BASE_TAR="$CACHE/base-$KEY.tar"
 if [ "${1:-}" != "--fresh" ] && [ -s "$BASE_TAR" ]; then
     log "Reusing the cached base system"
@@ -104,6 +105,17 @@ gecko = (m.get("browser_specific_settings") or m.get("applications") or {}).get(
 assert gecko.get("id") == "uBlock0@raymondhill.net", gecko
 print("uBlock Origin", m["version"])'
 
+    log "NordVPN from Nord's repository"
+    curl -fsSL https://repo.nordvpn.com/gpg/nordvpn_public.asc -o "$ROOT/etc/apt/keyrings/nordvpn.asc"
+    fpr=$(gpg --show-keys --with-colons "$ROOT/etc/apt/keyrings/nordvpn.asc" 2>/dev/null \
+        | awk -F: '/^fpr/ {print $10; exit}')
+    [ "$fpr" = "$NORDVPN_KEY_FPR" ] || { echo "NordVPN key is $fpr, expected $NORDVPN_KEY_FPR"; exit 1; }
+    echo "deb [signed-by=/etc/apt/keyrings/nordvpn.asc] https://repo.nordvpn.com/deb/nordvpn/debian stable main" \
+        > "$ROOT/etc/apt/sources.list.d/nordvpn.list"
+    in_root apt-get update -qq
+    # No recommends: those are the desktop app and iptables, neither needed.
+    in_root apt-get install -y -qq --no-install-recommends nordvpn
+
     log "Saving the base system for faster rebuilds"
     in_root apt-get clean
     unmount_all
@@ -117,6 +129,7 @@ log "TV files"
 tar -C "$SRC/rootfs" --owner=0 --group=0 --numeric-owner -cf - $(ls -A "$SRC/rootfs") \
     | tar -C "$ROOT" -xpf - --no-overwrite-dir
 chmod 755 "$ROOT"/usr/local/bin/* "$ROOT"/usr/local/sbin/* "$ROOT"/usr/local/lib/tvd/tvd.py \
+    "$ROOT"/usr/local/bin/tv-vpn-callback "$ROOT"/usr/local/sbin/tv-nordvpn-setup \
     "$ROOT"/usr/local/lib/tvd/apply-scale "$ROOT"/usr/local/lib/tvd/fullscreen-keeper \
     "$ROOT"/usr/local/lib/tvd/audio-auto
 
@@ -129,6 +142,9 @@ in_root locale-gen >/dev/null
 echo "LANG=en_US.UTF-8" > "$ROOT/etc/default/locale"
 ln -sf "/usr/share/zoneinfo/$TIMEZONE" "$ROOT/etc/localtime"
 echo "$TIMEZONE" > "$ROOT/etc/timezone"
+# Windows keeps the PC's hardware clock in local time. Read and write it the same way,
+# or each system leaves the other's clock an hour off.
+printf '0.0 0 0.0\n0\nLOCAL\n' > "$ROOT/etc/adjtime"
 date -u +%Y-%m-%d > "$ROOT/etc/tv-build"
 
 for g in video render audio; do in_root sh -c "getent group $g >/dev/null || groupadd -r $g"; done
@@ -144,7 +160,10 @@ install -m 600 "$OUT/authorized_keys" "$ROOT/root/.ssh/authorized_keys"
 install -d -m 755 "$ROOT/var/lib/tv" "$ROOT/var/log/journal" "$ROOT/boot/efi"
 
 in_root systemctl enable tvd.service tv-firstboot.service ssh.service avahi-daemon.service \
-    NetworkManager.service systemd-timesyncd.service
+    NetworkManager.service systemd-timesyncd.service bluetooth.service \
+    nordvpnd.socket nordvpnd.service tv-nordvpn-setup.service
+# Only the home screen service (root) controls the VPN, not the browser's user.
+in_root gpasswd -d tv nordvpn >/dev/null 2>&1 || true
 in_root systemctl set-default multi-user.target
 in_root plymouth-set-default-theme bgrt
 

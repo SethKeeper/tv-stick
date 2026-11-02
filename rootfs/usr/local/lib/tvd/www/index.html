@@ -326,6 +326,28 @@ main { display: flex; flex-direction: column; align-items: center; justify-conte
 .spin { width: 1.6vw; height: 1.6vw; flex: none; animation: spin 0.9s steps(8) infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* VPN: iOS-style switch, a text badge, and the small tag in the top bar. */
+.switch {
+  position: relative; width: 4.2vw; height: 2.5vw; flex: none; border-radius: 1.25vw;
+  background: rgba(120, 120, 128, 0.36); transition: background 0.25s var(--ease);
+}
+.switch::after {
+  content: ""; position: absolute; top: 0.2vw; left: 0.2vw; width: 2.1vw; height: 2.1vw; border-radius: 50%;
+  background: #fff; box-shadow: 0 0.2vw 0.6vw rgba(0, 0, 0, 0.3); transition: transform 0.4s var(--spring);
+}
+.switch.on { background: #30d158; }
+.switch.on::after { transform: translateX(1.7vw); }
+.item:focus .switch:not(.on) { background: rgba(0, 0, 0, 0.16); }
+.badge.word { font-size: 0.74vw; font-weight: 800; letter-spacing: 0.02em; }
+.vpn-tag {
+  flex: none; padding: 0.15vw 0.5vw; border-radius: 0.5vw; font-size: 0.85vw; font-weight: 700;
+  letter-spacing: 0.03em; background: rgba(48, 209, 88, 0.2); color: #5fe08a;
+}
+.pill:focus .vpn-tag { background: rgba(0, 0, 0, 0.08); color: #1b7f3a; }
+.item.destructive { color: #ff6961; }
+.item.destructive .text { align-items: center; }
+.item.destructive:focus { background: var(--red); color: #fff; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
@@ -390,6 +412,11 @@ const PATHS = {
   right: '<polyline points="9 18 15 12 9 6"/>',
   trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
   close: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  bluetooth: '<polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5"/>',
+  headphones: '<path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>',
+  speaker: '<rect x="4" y="2" width="16" height="20" rx="2"/><circle cx="12" cy="14" r="4"/><line x1="12" y1="6" x2="12.01" y2="6"/>',
+  gamepad: '<line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/><line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6C2.6 9.4 2 14.5 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.4-1.4A2 2 0 0 1 9.8 16h4.4a2 2 0 0 1 1.4.6L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.5-.6-6.6-.7-7.3A4 4 0 0 0 17.3 5z"/>',
+  keyboard: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/>',
 };
 const icon = (name, cls) => `<svg class="i${cls ? " " + cls : ""}" viewBox="0 0 24 24" aria-hidden="true">${PATHS[name]}</svg>`;
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -465,7 +492,8 @@ function netLabel() {
 function renderStatus() {
   const l = netLabel();
   const b = $("#netBtn");
-  b.innerHTML = `${l.glyph}<span>${esc(l.text)}</span>`;
+  const vpn = state.vpn && state.vpn.connected ? '<span class="vpn-tag">VPN</span>' : "";
+  b.innerHTML = `${l.glyph}<span>${esc(l.text)}</span>${vpn}`;
   b.classList.toggle("offline", !l.online);
 }
 
@@ -681,11 +709,18 @@ function goBack() {
 function setStatus(text, kind, busy) {
   const s = $("#status", sheet);
   if (!s) return;
+  if (!text) {
+    s.className = "status";
+    s.innerHTML = "";
+    return;
+  }
   s.className = "status" + (kind ? " " + kind : "");
   s.innerHTML = (busy ? spinner() : "") + `<span>${esc(text)}</span>`;
 }
 
 const badge = (name, color) => `<span class="badge" style="--b:${color}">${icon(name)}</span>`;
+const textBadge = (text, color) => `<span class="badge word" style="--b:${color}">${esc(text)}</span>`;
+const switchEl = (on) => `<span class="switch${on ? " on" : ""}" aria-hidden="true"></span>`;
 const chev = () => icon("right", "chev");
 const value = (text) => `<span class="value">${esc(text)}</span>`;
 
@@ -705,6 +740,8 @@ function openSettings() {
   openSheet(sheetHead("Settings") + `
     <div class="group">
       ${item("Wi-Fi", { lead: badge("wifi", "var(--blue)"), trail: value(l.online ? l.text : "Not Connected") + chev(), attrs: 'data-go="wifi"' })}
+      ${item("Bluetooth", { lead: badge("bluetooth", "var(--blue)"), trail: value(btLabel()) + chev(), attrs: 'data-go="bt"' })}
+      ${item("VPN", { lead: textBadge("VPN", "var(--blue)"), trail: value(vpnLabel()) + chev(), attrs: 'data-go="vpn"' })}
       ${item("Sound Output", { lead: badge("sound", "var(--pink)"), attrs: 'data-go="sound"' })}
       ${item("Text Size", { lead: badge("text", "var(--indigo)"), trail: value(SIZE_NAMES[state.settings.text_size] || "Medium") + chev(), attrs: 'data-go="text"' })}
     </div>
@@ -715,6 +752,8 @@ function openSettings() {
   $$("[data-go]", sheet).forEach((b) => b.addEventListener("click", () => {
     const where = b.dataset.go;
     if (where === "wifi") openWifi(openSettings, false);
+    else if (where === "vpn") openVpn(openSettings);
+    else if (where === "bt") openBluetooth(openSettings);
     else if (where === "sound") openSound(openSettings);
     else if (where === "text") openTextSize(openSettings);
     else if (where === "about") openAbout(openSettings);
@@ -903,6 +942,321 @@ function openPower() {
   }));
 }
 
+/* ---------- Bluetooth ---------- */
+
+function btLabel() {
+  const b = state.bt || {};
+  if (!b.available) return "Not Available";
+  if (!b.powered) return "Off";
+  const on = (b.connected || [])[0];
+  return on || "On";
+}
+
+function btGlyph(kind) {
+  if (/headphone|headset/.test(kind || "")) return icon("headphones");
+  if (/audio|speaker/.test(kind || "")) return icon("speaker");
+  if (/gaming|joystick/.test(kind || "")) return icon("gamepad");
+  if (/keyboard|mouse|input/.test(kind || "")) return icon("keyboard");
+  return icon("bluetooth");
+}
+
+async function openBluetooth(back) {
+  const gen = openSheet(sheetHead("Bluetooth", !!back) +
+    `<div id="btBody"><div class="loading">${spinner()}<span>Checking Bluetooth</span></div></div>
+     <div class="status" id="status"></div>`, back);
+  let b = null;
+  try { b = await api("/api/bt"); } catch (e) { b = null; }
+  if (gen !== sheetGen) return;
+  renderBluetooth(b, back, true);
+  if (b && b.powered) {
+    api("/api/bt/scan", {}).catch(() => {});
+    pollBluetooth(back, gen, 0);
+  }
+}
+
+function pollBluetooth(back, gen, round) {
+  // While the sheet is open, keep the list fresh as devices show up (for about a minute).
+  if (round > 30) return;
+  setTimeout(async () => {
+    if (gen !== sheetGen) return; // sheet closed or changed: stop
+    if (btBusy) return pollBluetooth(back, gen, round);
+    let b = null;
+    try { b = await api("/api/bt"); } catch (e) { b = null; }
+    if (gen !== sheetGen) return;
+    if (b) renderBluetooth(b, back, false);
+    pollBluetooth(back, gen, round + 1);
+  }, 2000);
+}
+
+let btBusy = false;
+
+function renderBluetooth(b, back, first) {
+  const body = $("#btBody", sheet);
+  if (!body) return;
+  if (b) {
+    state.bt = { available: b.available, powered: b.powered, connected: (b.devices || []).filter((d) => d.connected).map((d) => d.name) };
+  }
+  if (!b || !b.available) {
+    body.innerHTML = '<p class="note">This PC\'s Bluetooth isn\'t available right now.</p>';
+    return;
+  }
+  // Keep focus on the same row across refreshes.
+  const was = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.bt : null;
+  const mine = (b.devices || []).filter((d) => d.paired);
+  const others = (b.devices || []).filter((d) => !d.paired && d.name);
+  const row = (d, i, prefix) => item(d.name, {
+    lead: `<span class="badge" style="--b:var(--gray)">${btGlyph(d.icon)}</span>`,
+    trail: prefix === "m" ? value(d.connected ? "Connected" : "Not Connected") + chev() : "",
+    attrs: `data-bt="${prefix}${i}"`,
+  });
+  body.innerHTML = `
+    <div class="group">${item("Bluetooth", { trail: switchEl(b.powered), attrs: 'data-bt="power" data-first' })}</div>
+    ${b.powered ? `
+      ${mine.length ? `<div class="caption" style="margin-top:1.4vw">My Devices</div><div class="group">${mine.map((d, i) => row(d, i, "m")).join("")}</div>` : ""}
+      <div class="caption" style="margin-top:1.4vw;display:flex;align-items:center;gap:.6vw">Other Devices ${b.discovering ? spinner() : ""}</div>
+      <div class="group">${others.length ? others.map((d, i) => row(d, i, "o")).join("") : `<div class="loading"><span>${b.discovering ? "Looking for devices" : "No devices found"}</span></div>`}</div>
+      <p class="note" style="margin-top:1.2vw">Put your headphones, speaker or controller in pairing mode to see it here.</p>` : ""}`;
+  $("[data-bt=power]", sheet).addEventListener("click", () => btRun("/api/bt/power", { on: !b.powered }, b.powered ? "Turning off" : "Turning on", back));
+  mine.forEach((d, i) => $(`[data-bt=m${i}]`, sheet).addEventListener("click", () => openBtDevice(d, () => openBluetooth(back))));
+  others.forEach((d, i) => $(`[data-bt=o${i}]`, sheet).addEventListener("click", () => btRun("/api/bt/pair", { mac: d.mac }, "Pairing with " + d.name, back)));
+  const keep = was && $(`[data-bt="${was}"]`, sheet);
+  if (keep) keep.focus({ preventScroll: true });
+  else if (first) focusFirst();
+}
+
+async function btRun(path, payload, busyText, back) {
+  const gen = sheetGen;
+  btBusy = true;
+  setStatus(busyText, "", true);
+  let r;
+  try { r = await api(path, payload); } catch (e) { r = { ok: false, error: "The TV stick didn't answer. Try again." }; }
+  btBusy = false;
+  if (gen !== sheetGen) return;
+  if (r.ok) {
+    setStatus("");
+    renderBluetooth(r.bt || null, back, false);
+    if (path === "/api/bt/power" && payload.on) api("/api/bt/scan", {}).catch(() => {});
+  } else {
+    setStatus(r.error || "That didn't work.", "bad");
+  }
+}
+
+function openBtDevice(d, backTo) {
+  openSheet(sheetHead(d.name, true) + `
+    <div class="group">
+      ${item(d.connected ? "Disconnect" : "Connect", { trail: "", attrs: 'data-dev="toggle" data-first' })}
+    </div>
+    <div class="group">${item("Forget This Device", { trail: "", attrs: 'data-dev="forget"', cls: "destructive" })}</div>
+    <div class="status" id="status"></div>`, backTo);
+  const act = async (path, text) => {
+    const gen = sheetGen;
+    setStatus(text, "", true);
+    let r;
+    try { r = await api(path, { mac: d.mac }); } catch (e) { r = { ok: false, error: "The TV stick didn't answer. Try again." }; }
+    if (gen !== sheetGen) return;
+    if (r.ok) backTo();
+    else setStatus(r.error || "That didn't work.", "bad");
+  };
+  $("[data-dev=toggle]", sheet).addEventListener("click", () =>
+    d.connected ? act("/api/bt/disconnect", "Disconnecting") : act("/api/bt/connect", "Connecting to " + d.name));
+  const forget = $("[data-dev=forget]", sheet);
+  forget.addEventListener("click", () => {
+    if (!forget.dataset.armed) {
+      forget.dataset.armed = "1";
+      $(".text > span", forget).textContent = "Press Again to Forget";
+      return;
+    }
+    act("/api/bt/forget", "Forgetting " + d.name);
+  });
+}
+
+/* ---------- VPN (NordVPN) ---------- */
+
+function vpnLabel() {
+  const v = state.vpn || {};
+  if (!v.installed) return "Not Installed";
+  if (!v.logged_in) return "Not Signed In";
+  if (v.connected) return v.country || "Connected";
+  return "Off";
+}
+
+async function openVpn(back) {
+  const gen = openSheet(sheetHead("VPN", !!back) +
+    `<div id="vpnBody"><div class="loading">${spinner()}<span>Checking NordVPN</span></div></div>
+     <div class="status" id="status"></div>`, back);
+  let v = null;
+  try { v = await api("/api/vpn"); } catch (e) { v = null; }
+  if (gen !== sheetGen) return;
+  renderVpn(v, back);
+}
+
+function renderVpn(v, back) {
+  const body = $("#vpnBody", sheet);
+  if (!body) return;
+  if (v) {
+    state.vpn = v;
+    renderStatus();
+  }
+  if (!v || !v.installed) {
+    body.innerHTML = '<p class="note">NordVPN isn\'t installed on this stick yet.</p>';
+    return;
+  }
+  if (!v.logged_in && v.login_pending) {
+    body.innerHTML = `<div class="loading">${spinner()}<span>Finishing your sign-in</span></div>`;
+    const gen = sheetGen;
+    setTimeout(async () => {
+      if (gen !== sheetGen) return;
+      let again = null;
+      try { again = await api("/api/vpn"); } catch (e) { again = null; }
+      if (gen === sheetGen) renderVpn(again, back);
+    }, 2000);
+    return;
+  }
+  if (!v.logged_in) {
+    body.innerHTML = `
+      <p class="note">Sign in with your NordVPN account. You type your email and password on Nord's own website, and the TV brings you back here afterwards.</p>
+      <div class="actions">
+        <button class="btn primary" id="vpnSignIn" data-first>Sign In</button>
+        <button class="btn" id="vpnToken">Use a Token</button>
+      </div>`;
+    $("#vpnSignIn", sheet).addEventListener("click", vpnSignIn);
+    $("#vpnToken", sheet).addEventListener("click", () => openVpnToken(() => openVpn(back)));
+    if (v.login_error) setStatus("The sign-in didn't finish: " + v.login_error, "bad");
+    focusFirst();
+    return;
+  }
+  const where = [v.country, v.city].filter(Boolean).join(", ");
+  const place = state.settings.vpn_country || "Fastest Server";
+  body.innerHTML = `
+    <div class="group">
+      ${item("VPN", { trail: switchEl(v.connected || v.connecting), sub: v.connected ? "Connected to " + where : v.connecting ? "Connecting" : "Not connected", attrs: 'data-vpn="toggle" data-first' })}
+    </div>
+    <div class="group">
+      ${item("Location", { trail: value(place) + chev(), attrs: 'data-vpn="country"' })}
+      ${item("Connect at Startup", { trail: switchEl(v.autoconnect), attrs: 'data-vpn="auto"' })}
+    </div>
+    <p class="note" style="margin-top:1.2vw">Netflix sometimes blocks VPN servers. If a show won't play, pick another country or turn the VPN off.</p>
+    <div class="group">${item("Sign Out", { trail: "", attrs: 'data-vpn="logout"', cls: "destructive" })}</div>`;
+
+  const run = async (path, payload, busyText) => {
+    const gen = sheetGen;
+    setStatus(busyText, "", true);
+    $$("[data-vpn]", sheet).forEach((el) => { el.disabled = true; });
+    let r;
+    try { r = await api(path, payload); } catch (e) { r = { ok: false, error: "The TV stick didn't answer. Try again." }; }
+    if (gen !== sheetGen) return;
+    if (r.ok && r.vpn) {
+      setStatus("");
+      renderVpn(r.vpn, back);
+    } else if (r.ok) {
+      openVpn(back);
+    } else {
+      $$("[data-vpn]", sheet).forEach((el) => { el.disabled = false; });
+      setStatus(r.error || "That didn't work.", "bad");
+      focusFirst();
+    }
+  };
+
+  $("[data-vpn=toggle]", sheet).addEventListener("click", () => {
+    if (v.connected) run("/api/vpn/disconnect", {}, "Disconnecting");
+    else run("/api/vpn/connect", { country: state.settings.vpn_country || "" }, "Connecting to " + place);
+  });
+  $("[data-vpn=country]", sheet).addEventListener("click", () => openVpnCountries(() => openVpn(back)));
+  $("[data-vpn=auto]", sheet).addEventListener("click", () =>
+    run("/api/vpn/autoconnect", { on: !v.autoconnect }, v.autoconnect ? "Turning off" : "Turning on"));
+  const out = $("[data-vpn=logout]", sheet);
+  out.addEventListener("click", () => {
+    if (!out.dataset.armed) {
+      out.dataset.armed = "1";
+      $(".text > span", out).textContent = "Press Again to Sign Out";
+      return;
+    }
+    run("/api/vpn/logout", {}, "Signing out");
+  });
+  focusFirst();
+}
+
+async function vpnSignIn() {
+  const gen = sheetGen;
+  setStatus("Opening Nord's sign-in page", "", true);
+  let r;
+  try { r = await api("/api/vpn/login", {}); } catch (e) { r = { ok: false, error: "The TV stick didn't answer. Try again." }; }
+  if (gen !== sheetGen) return;
+  if (r.ok && r.url) {
+    go(r.url);
+  } else {
+    setStatus(r.error || "Couldn't start the sign-in.", "bad");
+  }
+}
+
+function openVpnToken(backTo) {
+  openSheet(sheetHead("Sign In with a Token", true) + `
+    <p class="note">Make a token in your Nord Account on any device: NordVPN, then Advanced settings, then Get access token. Type it here.</p>
+    <div class="field"><label for="vpnTok">Token</label>
+      <input class="input" id="vpnTok" autocomplete="off" spellcheck="false" data-first></div>
+    <div class="actions"><button class="btn primary" id="vpnTokGo">Sign In</button></div>
+    <div class="status" id="status"></div>`, backTo);
+  const input = $("#vpnTok", sheet);
+  const submit = async () => {
+    const token = input.value.trim();
+    if (!token) {
+      setStatus("Type the token first.", "bad");
+      return;
+    }
+    const gen = sheetGen;
+    setStatus("Signing in", "", true);
+    let r;
+    try { r = await api("/api/vpn/token", { token }); } catch (e) { r = { ok: false, error: "The TV stick didn't answer. Try again." }; }
+    if (gen !== sheetGen) return;
+    if (r.ok) backTo();
+    else {
+      setStatus(r.error || "That token didn't work.", "bad");
+      input.focus();
+      input.select();
+    }
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submit();
+    }
+  });
+  $("#vpnTokGo", sheet).addEventListener("click", submit);
+}
+
+async function openVpnCountries(back) {
+  const gen = openSheet(sheetHead("Location", true) +
+    `<p class="note">Choosing a country connects to it. Type a letter to jump.</p>
+     <div class="group" id="countryList"><div class="loading">${spinner()}<span>Loading countries</span></div></div>
+     <div class="status" id="status"></div>`, back);
+  let data;
+  try { data = await api("/api/vpn/countries"); } catch (e) { data = { countries: [] }; }
+  if (gen !== sheetGen) return;
+  const cur = state.settings.vpn_country || "";
+  const names = [""].concat(data.countries || []);
+  const list = $("#countryList", sheet);
+  list.innerHTML = names.map((c, k) => item(c || "Fastest Server", {
+    lead: c === cur ? icon("check", "tick") : '<span class="lead-space"></span>',
+    trail: "",
+    attrs: `data-k="${k}"${c === cur ? " data-first" : ""}`,
+    cls: "check",
+  })).join("");
+  $$("[data-k]", list).forEach((b) => b.addEventListener("click", async () => {
+    const c = names[Number(b.dataset.k)];
+    setStatus(c ? "Connecting to " + c : "Connecting to the fastest server", "", true);
+    let r;
+    try { r = await api("/api/vpn/connect", { country: c }); } catch (e) { r = { ok: false }; }
+    if (gen !== sheetGen) return;
+    if (r.ok) {
+      state.settings.vpn_country = c;
+      back();
+    } else {
+      setStatus(r.error || "Couldn't connect.", "bad");
+    }
+  }));
+  focusFirst();
+}
+
 function niceName(host) {
   const parts = host.replace(/^www\./, "").split(".");
   const base = parts.length > 2 ? parts[parts.length - 2] : parts[0];
@@ -1063,6 +1417,19 @@ document.addEventListener("keydown", (e) => {
     }
     return;
   }
+  // In the country list, a letter jumps to the next country starting with it.
+  const countries = !layer.hidden && !typing && k.length === 1 && /[a-z]/i.test(k) && $("#countryList", sheet);
+  if (countries) {
+    const items = $$("[data-k]", countries);
+    const at = items.indexOf(a);
+    const order = items.slice(at + 1).concat(items.slice(0, at + 1));
+    const hit = order.find((b) => b.textContent.trim().toLowerCase().startsWith(k.toLowerCase()));
+    if (hit) {
+      e.preventDefault();
+      hit.focus();
+    }
+    return;
+  }
   const dirs = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" };
   if (dirs[k]) {
     if (typing && (k === "ArrowLeft" || k === "ArrowRight")) return;
@@ -1139,7 +1506,14 @@ $("#editDone").addEventListener("click", () => setEditing(false));
 tick();
 setInterval(tick, 1000);
 renderStatus();
-refresh();
+// The NordVPN sign-in comes back to /#vpn; show the result straight away.
+function openVpnFromHash() {
+  if (location.hash !== "#vpn") return;
+  history.replaceState(null, "", "/");
+  openVpn(openSettings);
+}
+window.addEventListener("hashchange", openVpnFromHash);
+refresh().then(openVpnFromHash);
 setTimeout(refresh, 9000);
 setInterval(refresh, 15000);
 </script>

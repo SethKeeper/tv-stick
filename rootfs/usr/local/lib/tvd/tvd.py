@@ -65,6 +65,15 @@ FAKE_NETWORKS = [
     {"ssid": "Cafe Guest", "signal": 38, "secure": False, "active": False},
     {"ssid": "<b>Neighbours</b>", "signal": 22, "secure": True, "active": False},
 ]
+FAKE_VPN = {"installed": True, "logged_in": False, "connected": False, "country": None,
+            "city": None, "server": None, "autoconnect": False}
+FAKE_COUNTRIES = ["Austria", "Belgium", "Canada", "France", "Germany", "Italy", "Japan",
+                  "Netherlands", "Spain", "Sweden", "Switzerland", "United Kingdom", "United States"]
+FAKE_BT = {"available": True, "powered": True, "discovering": False, "devices": [
+    {"mac": "AA:BB:CC:DD:EE:01", "name": "AirPods Pro", "icon": "audio-headphones", "paired": True, "connected": False},
+    {"mac": "AA:BB:CC:DD:EE:02", "name": "Living Room Speaker", "icon": "audio-card", "paired": False, "connected": False},
+    {"mac": "AA:BB:CC:DD:EE:03", "name": "Xbox Wireless Controller", "icon": "input-gaming", "paired": False, "connected": False},
+]}
 FAKE_AUDIO = [
     {"id": "sink:hdmi", "name": "Projector (HDMI)", "active": True, "available": True},
     {"id": "sink:analog", "name": "Headphones", "active": False, "available": False},
@@ -80,13 +89,15 @@ def tv_uid():
         return 1000
 
 
-def run(cmd, timeout=15, as_tv=False):
-    """Runs a command and returns (exit code, stdout, stderr). Never raises."""
+def run(cmd, timeout=15, as_tv=False, env=None, answer=None):
+    """Runs a command and returns (exit code, stdout, stderr). Never raises.
+    stdin is /dev/null unless `answer` is given, so a tool that asks a question can't wait."""
     if as_tv:
         cmd = ["runuser", "-u", TV_USER, "--", "env",
                "XDG_RUNTIME_DIR=/run/user/%d" % tv_uid()] + list(cmd)
+    kwargs = {"input": answer} if answer is not None else {"stdin": subprocess.DEVNULL}
     try:
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env, **kwargs)
         return p.returncode, p.stdout, p.stderr
     except (OSError, subprocess.SubprocessError) as e:
         return -1, "", str(e)
@@ -397,6 +408,430 @@ def update_pending():
         return False
 
 
+# ---------- Bluetooth (BlueZ over D-Bus) ----------
+
+BT_ADAPTER = "/org/bluez/hci0"
+MAC_RE = re.compile(r"^[0-9A-F]{2}(:[0-9A-F]{2}){5}$")
+_bt_lock = threading.Lock()
+_bt_scan = {"proc": None}
+BT_ERRORS = [
+    ("page timeout", "The device didn't answer. Make sure it's on and close by."),
+    ("authentication", "Pairing was refused. Put the device in pairing mode and try again."),
+    ("in progress", "Still busy with that device. Try again in a moment."),
+    ("not ready", "Bluetooth isn't ready yet. Try again in a moment."),
+    ("profile-unavailable", "This TV can't use that kind of device."),
+    ("does not exist", "That device is gone. Search again."),
+]
+
+
+def bt_path(mac):
+    return BT_ADAPTER + "/dev_" + mac.replace(":", "_")
+
+
+def bt_busctl(*args, timeout=15):
+    """One busctl call against BlueZ. Returns (ok, friendly error)."""
+    code, out, err = run(["busctl", "--timeout=%d" % timeout] + list(args), timeout=timeout + 5)
+    if code == 0:
+        return True, ""
+    text = (err or out).strip().lower()
+    for needle, message in BT_ERRORS:
+        if needle in text:
+            return False, message
+    return False, "Bluetooth said: " + ((err or out).strip().splitlines() or ["unknown error"])[-1]
+
+
+def bt_objects():
+    """Everything BlueZ knows, from one D-Bus call: (adapter properties, [device properties])."""
+    code, out, _ = run(["busctl", "--json=short", "call", "org.bluez", "/",
+                        "org.freedesktop.DBus.ObjectManager", "GetManagedObjects"], timeout=10)
+    if code != 0:
+        return None, []
+    try:
+        data = json.loads(out)["data"][0]
+    except (ValueError, KeyError, IndexError, TypeError):
+        return None, []
+
+    def plain(props):
+        return {k: v.get("data") for k, v in props.items() if isinstance(v, dict)}
+
+    adapter, devices = None, []
+    for path, ifaces in data.items():
+        if path == BT_ADAPTER and "org.bluez.Adapter1" in ifaces:
+            adapter = plain(ifaces["org.bluez.Adapter1"])
+        if path.startswith(BT_ADAPTER + "/dev_") and "org.bluez.Device1" in ifaces:
+            devices.append(plain(ifaces["org.bluez.Device1"]))
+    return adapter, devices
+
+
+def bt_status():
+    if FAKE:
+        return json.loads(json.dumps(FAKE_BT))
+    adapter, devices = bt_objects()
+    if adapter is None:
+        return {"available": False}
+    out = []
+    for d in devices:
+        paired = bool(d.get("Paired") or d.get("Bonded"))
+        # Alias falls back to the address; only paired devices may show it.
+        name = d.get("Name") or (d.get("Alias") if paired else "")
+        out.append({"mac": d.get("Address", ""), "name": name or "", "icon": d.get("Icon") or "",
+                    "paired": paired, "connected": bool(d.get("Connected"))})
+    out.sort(key=lambda x: (not x["connected"], not x["paired"], x["name"].lower()))
+    scanning = _bt_scan["proc"] is not None and _bt_scan["proc"].poll() is None
+    return {"available": True, "powered": bool(adapter.get("Powered")),
+            "discovering": bool(adapter.get("Discovering")) or scanning, "devices": out}
+
+
+def bt_summary():
+    b = bt_status()
+    return {"available": b.get("available", False), "powered": b.get("powered", False),
+            "connected": [d["name"] for d in b.get("devices", []) if d["connected"]]}
+
+
+def bt_fake_device(mac):
+    return next((d for d in FAKE_BT["devices"] if d["mac"] == mac), None)
+
+
+def bt_power(on):
+    if FAKE:
+        FAKE_BT["powered"] = bool(on)
+        return True, ""
+    if on:
+        run(["rfkill", "unblock", "bluetooth"], timeout=5)
+    return bt_busctl("set-property", "org.bluez", BT_ADAPTER, "org.bluez.Adapter1",
+                     "Powered", "b", "true" if on else "false")
+
+
+def bt_scan():
+    """Searches for about 45 seconds. Discovery belongs to the process that asked for it,
+    so a bluetoothctl stays running for that long."""
+    if FAKE:
+        FAKE_BT["discovering"] = True
+        threading.Timer(6, lambda: FAKE_BT.update(discovering=False)).start()
+        return True, ""
+    proc = _bt_scan["proc"]
+    if proc is None or proc.poll() is not None:
+        _bt_scan["proc"] = subprocess.Popen(["bluetoothctl", "--timeout", "45", "scan", "on"],
+                                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return True, ""
+
+
+def bt_stop_scan():
+    proc = _bt_scan["proc"]
+    if proc is not None and proc.poll() is None:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+
+
+def bt_pair(mac):
+    if FAKE:
+        time.sleep(1.5)
+        d = bt_fake_device(mac)
+        if not d:
+            return False, "That device is gone. Search again."
+        d.update(paired=True, connected=True)
+        return True, ""
+    bt_stop_scan()  # pairing while searching fails on many adapters
+    path = bt_path(mac)
+    ok, err = bt_busctl("call", "org.bluez", path, "org.bluez.Device1", "Pair", timeout=40)
+    if not ok and "already" not in err.lower():
+        return False, err
+    bt_busctl("set-property", "org.bluez", path, "org.bluez.Device1", "Trusted", "b", "true")
+    return bt_connect(mac)
+
+
+def bt_connect(mac):
+    if FAKE:
+        time.sleep(1)
+        d = bt_fake_device(mac)
+        if d:
+            d["connected"] = True
+        return True, ""
+    ok, err = bt_busctl("call", "org.bluez", bt_path(mac), "org.bluez.Device1", "Connect", timeout=30)
+    if ok:
+        bt_use_for_sound(mac)
+    return ok, err
+
+
+def bt_use_for_sound(mac):
+    """Sends sound to a Bluetooth speaker or headphones that just connected. The TV pins
+    sound to HDMI at startup, so new Bluetooth audio would otherwise stay silent."""
+    dev = next((d for d in bt_status().get("devices", []) if d["mac"] == mac), {})
+    if dev.get("icon") and not dev["icon"].startswith("audio"):
+        return  # a controller or keyboard: nothing to do for sound
+    want = "bluez_output." + mac.replace(":", "_")
+    for _ in range(16):
+        sinks = [s.get("name", "") for s in pactl_json("list", "sinks")]
+        match = [n for n in sinks if n.startswith(want)]
+        if match:
+            run(["pactl", "set-default-sink", match[0]], as_tv=True)
+            s = get_settings()
+            s["audio_manual"] = True
+            save_json(SETTINGS_FILE, s)
+            return
+        time.sleep(0.5)  # not an audio device, or its sound profile isn't up yet
+
+
+def bt_disconnect(mac):
+    if FAKE:
+        d = bt_fake_device(mac)
+        if d:
+            d["connected"] = False
+        return True, ""
+    return bt_busctl("call", "org.bluez", bt_path(mac), "org.bluez.Device1", "Disconnect", timeout=20)
+
+
+def bt_forget(mac):
+    if FAKE:
+        FAKE_BT["devices"] = [d for d in FAKE_BT["devices"] if d["mac"] != mac]
+        return True, ""
+    return bt_busctl("call", "org.bluez", BT_ADAPTER, "org.bluez.Adapter1", "RemoveDevice", "o", bt_path(mac))
+
+
+# ---------- VPN (NordVPN's official Linux app) ----------
+
+NORDVPN = "/usr/bin/nordvpn"
+# Firefox hands Nord's sign-in return link (nordvpn://...) to tv-vpn-callback, which runs
+# as the tv user and drops it here. tvd (root) finishes the sign-in with it.
+CALLBACK_DIR = Path(os.environ.get("TVD_RUN", "/run/tvd"))
+CALLBACK_FILE = CALLBACK_DIR / "nordvpn-callback"
+ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+COUNTRY_RE = re.compile(r"^[A-Za-z][A-Za-z_' .()-]{1,40}$")
+TOKEN_RE = re.compile(r"^[a-f0-9]{16,1024}$")  # nordvpnd only accepts lowercase hex
+LOGIN_URL_RE = re.compile(r"Continue in the browser: (https://api\.nordvpn\.com/v1/users/oauth/login-redirect\?attempt=[0-9a-f-]{36})")
+_vpn_lock = threading.Lock()
+_vpn_login = {"started": 0.0, "url": None, "error": None, "watching": False}
+_vpn_countries = {"at": 0.0, "list": []}
+
+
+def nordvpn(*args, timeout=30):
+    """Runs the NordVPN CLI as root and returns (exit code, cleaned text). The CLI quits at
+    once without a HOME, prints all messages (errors too) to stdout, and draws colors and a
+    spinner only on a terminal; the env makes sure of the latter anyway."""
+    env = dict(os.environ, HOME=os.environ.get("HOME") or "/root", NO_COLOR="1", DISABLE_TUI_LOADER="1")
+    # Logins ask an analytics question when consent is unset; "n" answers it (consent off).
+    answer = "n\n" if args and args[0] == "login" else None
+    code, out, err = run([NORDVPN] + list(args), timeout=timeout, env=env, answer=answer)
+    lines = []
+    for raw in ANSI.sub("", out + "\n" + err).split("\n"):
+        # The CLI draws a spinner with carriage returns even without a terminal.
+        line = raw.split("\r")[-1].strip()
+        if line and line not in ("-", "\\", "|", "/"):
+            lines.append(line)
+    return code, "\n".join(lines)
+
+
+def key_values(text):
+    """'Key: value' lines as a dict with lower-case keys."""
+    out = {}
+    for line in text.splitlines():
+        key, sep, val = line.partition(":")
+        if sep:
+            out[key.strip().lower()] = val.strip()
+    return out
+
+
+def last_line(text, fallback):
+    lines = [l for l in text.splitlines() if l.strip()]
+    return lines[-1] if lines else fallback
+
+
+def vpn_status(full=True):
+    if FAKE:
+        v = dict(FAKE_VPN)
+        v["login_pending"] = False
+        v["login_error"] = None
+        return v
+    if not os.path.exists(NORDVPN):
+        return {"installed": False}
+    _, text = nordvpn("status", timeout=15)  # local, cheap: fine to poll
+    st = key_values(text)
+    state_word = st.get("status", "").lower()
+    connected = state_word == "connected"
+    info = {"installed": True, "connected": connected, "connecting": state_word == "connecting",
+            "country": st.get("country") if connected else None,
+            "city": st.get("city") if connected else None,
+            "server": (st.get("hostname") or st.get("server")) if connected else None}
+    if full:
+        info["logged_in"] = vpn_signed_in() is not False
+        settings = key_values(nordvpn("settings", timeout=15)[1])
+        info["autoconnect"] = settings.get("auto-connect", "").lower().startswith("enabled")
+        pending = time.time() - _vpn_login["started"] < 900 and not info["logged_in"]
+        info["login_pending"] = pending and _vpn_login["watching"]
+        info["login_error"] = _vpn_login["error"]
+    return info
+
+
+def vpn_countries():
+    """Country names for the picker. The CLI prints one Title_Case_Token per line when it
+    isn't on a terminal; underscores become spaces for display."""
+    if FAKE:
+        return FAKE_COUNTRIES
+    if time.time() - _vpn_countries["at"] < 3600 and _vpn_countries["list"]:
+        return _vpn_countries["list"]
+    code, text = nordvpn("countries", timeout=30)
+    if code != 0:  # e.g. the server list isn't loaded yet; never parse an error sentence
+        return _vpn_countries["list"]
+    names = {word.replace("_", " ") for word in text.split() if COUNTRY_RE.match(word)}
+    if names:
+        _vpn_countries.update(at=time.time(), list=sorted(names))
+    return sorted(names)
+
+
+def vpn_target(country):
+    """The CLI's token for a country (spaces as underscores), or None if NordVPN doesn't offer it."""
+    return country.replace(" ", "_") if country in vpn_countries() else None
+
+
+def vpn_signed_in():
+    """True, False, or None when it can't tell (offline). `account` asks Nord's servers,
+    so only an exact "not logged in" counts as signed out."""
+    code, text = nordvpn("account", timeout=20)
+    if code == 0:
+        return True
+    if "not logged in" in text.lower():
+        return False
+    code, text = nordvpn("token", timeout=15)  # local check, used when the API can't be reached
+    if code == 0:
+        return True
+    return False if "not logged in" in text.lower() else None
+
+
+def vpn_wait_connected(seconds):
+    for _ in range(seconds):
+        if vpn_status(full=False).get("connected"):
+            return True
+        time.sleep(1)
+    return False
+
+
+def vpn_connect(country):
+    if FAKE:
+        time.sleep(1.5)
+        FAKE_VPN.update(connected=True, country=country or "Germany",
+                        city="Frankfurt" if (country or "Germany") == "Germany" else None)
+    else:
+        args = ["connect"]
+        if country:
+            target = vpn_target(country)
+            if not target:
+                return False, "NordVPN doesn't offer that country."
+            args.append(target)
+        code, text = nordvpn(*args, timeout=90)
+        # Exit codes don't match outcomes ("already in progress" exits 0), so read the state back.
+        if not vpn_wait_connected(30 if "in progress" in text.lower() else 3):
+            return False, "Couldn't connect. " + last_line(text, "NordVPN didn't say why.")
+    s = get_settings()
+    s["vpn_country"] = country
+    save_json(SETTINGS_FILE, s)
+    if vpn_status(full=True).get("autoconnect"):
+        vpn_set_autoconnect(True)  # follow the new country at the next start too
+    return True, ""
+
+
+def vpn_disconnect():
+    if FAKE:
+        FAKE_VPN.update(connected=False, country=None, city=None)
+        return True, ""
+    code, text = nordvpn("disconnect", timeout=30)
+    return (True, "") if code == 0 else (False, last_line(text, "Couldn't disconnect."))
+
+
+def vpn_set_autoconnect(on):
+    if FAKE:
+        FAKE_VPN["autoconnect"] = bool(on)
+        return True, ""
+    if on:
+        target = vpn_target(get_settings().get("vpn_country") or "")
+        code, text = nordvpn(*(["set", "autoconnect", "on"] + ([target] if target else [])), timeout=20)
+    else:
+        code, text = nordvpn("set", "autoconnect", "off", timeout=20)
+    return (True, "") if code == 0 else (False, last_line(text, "Couldn't change that setting."))
+
+
+def vpn_logout():
+    if FAKE:
+        FAKE_VPN.update(logged_in=False, connected=False, country=None, city=None, autoconnect=False)
+        return True, ""
+    nordvpn("set", "autoconnect", "off", timeout=20)
+    code, text = nordvpn("logout", timeout=30)
+    if code == 0 or "not logged in" in text.lower():
+        _vpn_login.update(url=None, error=None)
+        return True, ""
+    return False, last_line(text, "Couldn't sign out.")
+
+
+def vpn_consent():
+    """Answers NordVPN's analytics question ahead of time. Without an answer, every login
+    asks it on stdin and, with nobody to reply, never finishes."""
+    nordvpn("set", "analytics", "off", timeout=20)  # "already set" is fine too
+
+
+def vpn_token_login(token):
+    token = re.sub(r"\s+", "", token or "").lower()
+    if not TOKEN_RE.match(token):
+        return False, "That doesn't look like a NordVPN token. It's a long string of numbers and letters a to f."
+    if FAKE:
+        if token.startswith("dead"):
+            return False, "That token didn't work."
+        FAKE_VPN["logged_in"] = True
+        return True, ""
+    vpn_consent()
+    code, text = nordvpn("login", "--token", token, timeout=60)
+    if vpn_signed_in():  # the CLI can exit 0 without having logged in
+        return True, ""
+    return False, "That token didn't work. " + last_line(text, "")
+
+
+def vpn_login_start():
+    """Starts Nord's browser sign-in and returns its URL for Firefox to open."""
+    if FAKE:
+        FAKE_VPN["logged_in"] = True
+        return "/#vpn", None
+    # A second "nordvpn login" replaces the pending one, so reuse it while it's fresh.
+    if _vpn_login["url"] and time.time() - _vpn_login["started"] < 600:
+        return _vpn_login["url"], None
+    prepare_callback_dir()
+    try:
+        CALLBACK_FILE.unlink()
+    except OSError:
+        pass
+    vpn_consent()
+    code, text = nordvpn("login", timeout=30)
+    m = LOGIN_URL_RE.search(text)
+    if not m:
+        if "already logged in" in text.lower():
+            return None, "You're already signed in."
+        return None, last_line(text, "NordVPN didn't give a sign-in link.")
+    _vpn_login.update(started=time.time(), url=m.group(1), error=None)
+    if not _vpn_login["watching"]:
+        _vpn_login["watching"] = True
+        threading.Thread(target=_vpn_watch_callback, daemon=True).start()
+    return m.group(1), None
+
+
+def _vpn_watch_callback():
+    try:
+        while time.time() - _vpn_login["started"] < 900:
+            if CALLBACK_FILE.exists():
+                link = CALLBACK_FILE.read_text(errors="replace").strip()
+                CALLBACK_FILE.unlink()
+                if (link.startswith("nordvpn://login?") and "exchange_token=" in link
+                        and len(link) <= 4096 and not re.search(r"\s", link)):
+                    with _vpn_lock:
+                        code, text = nordvpn("login", "--callback", link, timeout=90)
+                        ok = vpn_signed_in() is True  # the CLI can say Welcome even when it failed
+                    _vpn_login["error"] = None if ok else last_line(text, "The sign-in didn't finish.")
+                    _vpn_login["url"] = None
+                    return
+            time.sleep(0.5)
+    finally:
+        _vpn_login["watching"] = False
+
+
 # ---------- tile icons ----------
 
 class IconLinks(HTMLParser):
@@ -597,8 +1032,13 @@ class Handler(BaseHTTPRequestHandler):
             build = BUILD_FILE.read_text().strip() if BUILD_FILE.exists() else "development copy"
             return self.reply(200, {
                 "tiles": get_tiles(), "settings": get_settings(), "net": net_status(),
+                "vpn": vpn_status(full=False), "bt": bt_summary(),
                 "windows": bool(windows_entry()), "update_pending": update_pending(),
                 "host": "tvstick" if FAKE else socket.gethostname(), "build": build})
+        if path.startswith("/api/vpn"):
+            return self.vpn_api(path, body)
+        if path.startswith("/api/bt"):
+            return self.bt_api(path, body)
         if path == "/api/wifi":
             if get:
                 return self.reply(200, {"networks": wifi_scan()})
@@ -632,9 +1072,72 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, {"ok": True})
         return self.reply(404, {"error": "not found"})
 
+    def bt_api(self, path, body):
+        if body is None:
+            return self.reply(200, bt_status()) if path == "/api/bt" else self.reply(404, {"error": "not found"})
+        mac = str(body.get("mac", "")).upper()
+        needs_mac = {"/api/bt/pair": bt_pair, "/api/bt/connect": bt_connect,
+                     "/api/bt/disconnect": bt_disconnect, "/api/bt/forget": bt_forget}
+        if path == "/api/bt/power":
+            action = lambda: bt_power(bool(body.get("on")))
+        elif path == "/api/bt/scan":
+            action = bt_scan
+        elif path in needs_mac:
+            if not MAC_RE.match(mac):
+                return self.reply(200, {"ok": False, "error": "That isn't a Bluetooth address."})
+            action = lambda: needs_mac[path](mac)
+        else:
+            return self.reply(404, {"error": "not found"})
+        if not _bt_lock.acquire(timeout=1):
+            return self.reply(200, {"ok": False, "error": "Still busy with the last Bluetooth change."})
+        try:
+            ok, err = action()
+        finally:
+            _bt_lock.release()
+        return self.reply(200, {"ok": ok, "error": err, "bt": bt_status()})
+
+    def vpn_api(self, path, body):
+        get = body is None
+        if get and path == "/api/vpn":
+            return self.reply(200, vpn_status(full=True))
+        if get and path == "/api/vpn/countries":
+            return self.reply(200, {"countries": vpn_countries()})
+        if get:
+            return self.reply(404, {"error": "not found"})
+        if path == "/api/vpn/login":
+            url, err = vpn_login_start()
+            return self.reply(200, {"ok": bool(url), "url": url, "error": err})
+        actions = {
+            "/api/vpn/token": lambda: vpn_token_login(str(body.get("token", "")).strip()),
+            "/api/vpn/connect": lambda: vpn_connect(str(body.get("country", "")).strip()),
+            "/api/vpn/disconnect": vpn_disconnect,
+            "/api/vpn/autoconnect": lambda: vpn_set_autoconnect(bool(body.get("on"))),
+            "/api/vpn/logout": vpn_logout,
+        }
+        if path not in actions:
+            return self.reply(404, {"error": "not found"})
+        if not FAKE and not os.path.exists(NORDVPN):
+            return self.reply(200, {"ok": False, "error": "NordVPN isn't installed."})
+        if not _vpn_lock.acquire(timeout=1):
+            return self.reply(200, {"ok": False, "error": "Still busy with the last VPN change."})
+        try:
+            ok, err = actions[path]()
+        finally:
+            _vpn_lock.release()
+        return self.reply(200, {"ok": ok, "error": err, "vpn": vpn_status(full=True)})
+
+
+def prepare_callback_dir():
+    """/run/tvd, where tv-vpn-callback (running as tv) drops the sign-in link."""
+    CALLBACK_DIR.mkdir(parents=True, exist_ok=True)
+    os.chown(CALLBACK_DIR, 0, pwd.getpwnam(TV_USER).pw_gid)
+    os.chmod(CALLBACK_DIR, 0o770)
+
 
 def main():
     STATE.mkdir(parents=True, exist_ok=True)
+    if not FAKE:
+        prepare_callback_dir()
     threading.Thread(target=windows_entry, daemon=True).start()
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.daemon_threads = True

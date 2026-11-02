@@ -1,0 +1,25 @@
+#!/bin/sh
+# One-time NordVPN setup for the TV stick, run as root once nordvpnd is up. Some "already
+# set" answers exit 1, so the result is checked by reading `nordvpn settings` back.
+export HOME=/root NO_COLOR=1 DISABLE_TUI_LOADER=1
+n() { /usr/bin/nordvpn "$@" </dev/null 2>&1 | tail -n 2; }
+
+n set analytics off      # answers the consent question every login would otherwise ask
+n set lan-discovery on   # keeps SSH and tvstick.local reachable while connected
+n set notify off
+n set tray off
+# The package adds the first user to its group. Only the home screen service (root) needs
+# to control the VPN, not the browser's user.
+gpasswd -d tv nordvpn >/dev/null 2>&1 || true
+
+settings=$(/usr/bin/nordvpn settings </dev/null 2>&1)
+if printf '%s\n' "$settings" | grep -q '^User Consent: disabled' &&
+    printf '%s\n' "$settings" | grep -q '^LAN Discovery: enabled'; then
+    mkdir -p /var/lib/tv
+    touch /var/lib/tv/nordvpn-setup-done
+    echo "NordVPN is set up."
+else
+    echo "NordVPN setup didn't finish; it runs again at the next start."
+    printf '%s\n' "$settings"
+    exit 1
+fi

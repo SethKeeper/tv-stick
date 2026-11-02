@@ -4,6 +4,8 @@ After=network.target
 Before=getty@tty1.service
 
 [Service]
+# The NordVPN CLI refuses to run without a HOME, and root services don't get one.
+Environment=HOME=/root
 ExecStart=/usr/bin/python3 /usr/local/lib/tvd/tvd.py
 Restart=always
 RestartSec=2

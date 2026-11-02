@@ -1,0 +1,13 @@
+#!/bin/sh
+# Firefox hands NordVPN's sign-in return link (nordvpn://login?...exchange_token=...) to
+# this script, running as the tv user. It passes the link to the home screen service,
+# which finishes the sign-in as root, and brings the TV back to the VPN screen.
+case "$1" in
+    nordvpn://login\?*exchange_token=*) ;;
+    *) exit 1 ;;
+esac
+[ "${#1}" -le 4096 ] || exit 1
+umask 007
+printf '%s\n' "$1" > /run/tvd/nordvpn-callback.new &&
+    mv -f /run/tvd/nordvpn-callback.new /run/tvd/nordvpn-callback
+exec firefox --profile "$HOME/.mozilla/firefox/tv" "http://127.0.0.1:8765/#vpn"

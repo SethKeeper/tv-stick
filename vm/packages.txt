@@ -93,5 +93,14 @@ fonts-noto-core
 fonts-noto-color-emoji
 fonts-noto-cjk
 
+# Bluetooth: headphones, speakers, controllers
+bluez
+libspa-0.2-bluetooth
+
+# NordVPN comes from Nord's repository in build-image.sh. Its upgrade script calls sudo,
+# and nft is handy for checking its firewall rules.
+sudo
+nftables
+
 # Updates
 unattended-upgrades

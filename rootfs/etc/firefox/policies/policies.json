@@ -29,6 +29,30 @@
       "Locked": false
     },
     "Permissions": { "Autoplay": { "Default": "allow-audio-video" } },
+    "DNSOverHTTPS": { "Enabled": false, "Locked": true },
+    "Handlers": {
+      "schemes": {
+        "nordvpn": {
+          "action": "useHelperApp",
+          "ask": false,
+          "handlers": [{ "name": "TV home screen", "path": "/usr/local/bin/tv-vpn-callback" }]
+        }
+      }
+    },
+    "AutoLaunchProtocolsFromOrigins": [
+      {
+        "protocol": "nordvpn",
+        "allowed_origins": [
+          "https://nordaccount.com",
+          "https://my.nordaccount.com",
+          "https://auth.nordaccount.com",
+          "https://api.nordvpn.com"
+        ]
+      }
+    ],
+    "Preferences": {
+      "network.protocol-handler.external.nordvpn": { "Value": true, "Status": "locked" }
+    },
     "ExtensionSettings": {
       "uBlock0@raymondhill.net": {
         "installation_mode": "force_installed",
