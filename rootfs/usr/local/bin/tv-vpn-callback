@@ -1,9 +1,9 @@
 #!/bin/sh
-# Firefox hands NordVPN's sign-in return link (nordvpn://login?...exchange_token=...) to
-# this script, running as the tv user. It passes the link to the home screen service,
-# which finishes the sign-in as root, and brings the TV back to the VPN screen.
+# Firefox hands NordVPN's sign-in return link (nordvpn://login?...) to this script, running
+# as the tv user. It passes the link to the home screen service, which finishes the sign-in
+# as root (or reports Nord's error link), and brings the TV back to the VPN screen.
 case "$1" in
-    nordvpn://login\?*exchange_token=*) ;;
+    nordvpn://login\?*) ;;
     *) exit 1 ;;
 esac
 [ "${#1}" -le 4096 ] || exit 1

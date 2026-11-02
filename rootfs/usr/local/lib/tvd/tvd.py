@@ -756,10 +756,14 @@ def vpn_logout():
     if FAKE:
         FAKE_VPN.update(logged_in=False, connected=False, country=None, city=None, autoconnect=False)
         return True, ""
-    nordvpn("set", "autoconnect", "off", timeout=20)
-    code, text = nordvpn("logout", timeout=30)
+    nordvpn("set", "autoconnect", "off", timeout=20)  # logout alone leaves auto-connect on
+    s = get_settings()
+    revoke = ["--revoke-token"] if s.get("vpn_token_login") else []
+    code, text = nordvpn("logout", *revoke, timeout=30)
     if code == 0 or "not logged in" in text.lower():
         _vpn_login.update(url=None, error=None)
+        s["vpn_token_login"] = False
+        save_json(SETTINGS_FILE, s)
         return True, ""
     return False, last_line(text, "Couldn't sign out.")
 
@@ -782,6 +786,9 @@ def vpn_token_login(token):
     vpn_consent()
     code, text = nordvpn("login", "--token", token, timeout=60)
     if vpn_signed_in():  # the CLI can exit 0 without having logged in
+        s = get_settings()
+        s["vpn_token_login"] = True  # so Sign Out revokes it; NordVPN 6 keeps tokens valid otherwise
+        save_json(SETTINGS_FILE, s)
         return True, ""
     return False, "That token didn't work. " + last_line(text, "")
 
@@ -813,18 +820,32 @@ def vpn_login_start():
     return m.group(1), None
 
 
+def _vpn_finish_login(link):
+    """Completes a browser sign-in from Nord's return link, or records Nord's error."""
+    if "exchange_token=" not in link:
+        # Nord's error link looks like nordvpn://login?code=<n>&status=error
+        code = re.search(r"[?&]code=(\d+)", link)
+        _vpn_login["error"] = "Nord couldn't finish it%s. Try again." % (
+            " (code %s)" % code.group(1) if code else "")
+        return
+    with _vpn_lock:
+        _, text = nordvpn("login", "--callback", link, timeout=90)
+        ok = vpn_signed_in() is True  # the CLI can say Welcome even when it failed
+    if ok:
+        s = get_settings()
+        s["vpn_token_login"] = False
+        save_json(SETTINGS_FILE, s)
+    _vpn_login["error"] = None if ok else last_line(text, "The sign-in didn't finish.")
+
+
 def _vpn_watch_callback():
     try:
         while time.time() - _vpn_login["started"] < 900:
             if CALLBACK_FILE.exists():
                 link = CALLBACK_FILE.read_text(errors="replace").strip()
                 CALLBACK_FILE.unlink()
-                if (link.startswith("nordvpn://login?") and "exchange_token=" in link
-                        and len(link) <= 4096 and not re.search(r"\s", link)):
-                    with _vpn_lock:
-                        code, text = nordvpn("login", "--callback", link, timeout=90)
-                        ok = vpn_signed_in() is True  # the CLI can say Welcome even when it failed
-                    _vpn_login["error"] = None if ok else last_line(text, "The sign-in didn't finish.")
+                if link.startswith("nordvpn://login?") and len(link) <= 4096 and not re.search(r"\s", link):
+                    _vpn_finish_login(link)
                     _vpn_login["url"] = None
                     return
             time.sleep(0.5)
