@@ -8,7 +8,12 @@ internal disks, and Windows is only reached through `efibootmgr --bootnext` (Res
   `vm/build-image.sh` as root. The Debian base with Firefox and uBlock Origin is cached in the VM
   under /var/tmp/tvbuild-cache, keyed on `vm/packages.txt`; `--fresh` rebuilds it.
 - Test: `test/run-vm.sh` boots a copy under QEMU (TCG, UEFI, USB storage, 16 GB so first-boot
-  growing runs). `test/qmp.py shot|key|type|click`, `test/ssh.sh` (port 2222).
+  growing runs). `test/qmp.py shot|key|type|click`, `test/ssh.sh` (port 2222). Only the first
+  Firefox start is meaningful there: later starts sit blank for minutes because Firefox holds
+  page loads until uBlock Origin's background has started, which TCG makes very slow. Checked
+  2026-11-02 by moving uBO out of the profile (home screen then appears). Not a stick bug.
+- Running stick: `./update-stick.sh` pushes rootfs/etc and rootfs/usr over SSH and restarts
+  the home screen, no rewrite needed.
 - Write: `./write-stick.sh diskN` only accepts a removable USB disk under 300 GB. The Mac's
   Work drive is an external disk too. Always check `diskutil list external physical` first.
 - Home screen: `rootfs/usr/local/lib/tvd/tvd.py` (root service: Host check against DNS
