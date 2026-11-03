@@ -1075,8 +1075,9 @@ function openBtDevice(d, backTo) {
 function vpnLabel() {
   const v = state.vpn || {};
   if (!v.installed) return "Not Installed";
-  if (!v.logged_in) return "Not Signed In";
   if (v.connected) return v.country || "Connected";
+  // The 15-second refresh may not know yet (null): only a clear no means signed out.
+  if (v.logged_in === false) return "Not Signed In";
   return "Off";
 }
 

@@ -2,10 +2,11 @@
 """tvd: the TV stick's home screen service.
 
 Serves the home screen on 127.0.0.1:8765 and does the system jobs the screen
-needs: Wi-Fi, sound output, text size, power, restarting into Windows, and the
-list of site tiles. It runs as root, so it only answers requests addressed to
-127.0.0.1 or localhost (which blocks DNS rebinding) and every API call must
-carry the per-boot token that is written into the home screen page.
+needs: Wi-Fi, Bluetooth, the VPN, sound output, text size, power, restarting
+into Windows, and the list of site tiles. It runs as root, so it only answers
+requests addressed to 127.0.0.1 or localhost (which blocks DNS rebinding) and
+every API call must carry the per-boot token that is written into the home
+screen page.
 
 To try the page on another computer with made-up data:
     TVD_FAKE=1 TVD_STATE=/tmp/tvd python3 tvd.py
@@ -622,7 +623,10 @@ COUNTRY_RE = re.compile(r"^[A-Za-z][A-Za-z_' .()-]{1,40}$")
 TOKEN_RE = re.compile(r"^[a-f0-9]{16,1024}$")  # nordvpnd only accepts lowercase hex
 LOGIN_URL_RE = re.compile(r"Continue in the browser: (https://api\.nordvpn\.com/v1/users/oauth/login-redirect\?attempt=[0-9a-f-]{36})")
 _vpn_lock = threading.Lock()
-_vpn_login = {"started": 0.0, "url": None, "error": None, "watching": False}
+# finishing: Nord's return link is here and the sign-in is being completed with it.
+# signed_in: the last answer from vpn_signed_in(), for the 15-second poll (None until known).
+_vpn_login = {"started": 0.0, "url": None, "error": None, "watching": False, "finishing": False,
+              "signed_in": None}
 _vpn_countries = {"at": 0.0, "list": []}
 
 
@@ -660,27 +664,34 @@ def last_line(text, fallback):
 
 def vpn_status(full=True):
     if FAKE:
-        v = dict(FAKE_VPN)
-        v["login_pending"] = False
-        v["login_error"] = None
-        return v
-    if not os.path.exists(NORDVPN):
+        info = dict(FAKE_VPN, login_pending=False, login_error=None)
+    elif not os.path.exists(NORDVPN):
         return {"installed": False}
-    _, text = nordvpn("status", timeout=15)  # local, cheap: fine to poll
-    st = key_values(text)
-    state_word = st.get("status", "").lower()
-    connected = state_word == "connected"
-    info = {"installed": True, "connected": connected, "connecting": state_word == "connecting",
-            "country": st.get("country") if connected else None,
-            "city": st.get("city") if connected else None,
-            "server": (st.get("hostname") or st.get("server")) if connected else None}
+    else:
+        _, text = nordvpn("status", timeout=15)  # local, cheap: fine to poll
+        st = key_values(text)
+        state_word = st.get("status", "").lower()
+        connected = state_word == "connected"
+        info = {"installed": True, "connected": connected, "connecting": state_word == "connecting",
+                "country": st.get("country") if connected else None,
+                "city": st.get("city") if connected else None,
+                "server": (st.get("hostname") or st.get("server")) if connected else None}
+        if full:
+            info["logged_in"] = vpn_signed_in() is not False
+            settings = key_values(nordvpn("settings", timeout=15)[1])
+            info["autoconnect"] = settings.get("auto-connect", "").lower().startswith("enabled")
+            # Only once Nord's return link is here. Someone who left Nord's page without
+            # signing in gets the Sign In buttons back instead of a spinner.
+            info["login_pending"] = not info["logged_in"] and (
+                _vpn_login["finishing"] or (_vpn_login["watching"] and CALLBACK_FILE.exists()))
+            info["login_error"] = _vpn_login["error"]
     if full:
-        info["logged_in"] = vpn_signed_in() is not False
-        settings = key_values(nordvpn("settings", timeout=15)[1])
-        info["autoconnect"] = settings.get("auto-connect", "").lower().startswith("enabled")
-        pending = time.time() - _vpn_login["started"] < 900 and not info["logged_in"]
-        info["login_pending"] = pending and _vpn_login["watching"]
-        info["login_error"] = _vpn_login["error"]
+        _vpn_login["signed_in"] = info["logged_in"]
+    else:
+        # The poll skips the account check (it asks Nord's servers) and reports the last
+        # answer instead. Connected means signed in.
+        on = info["connected"] or info.get("connecting")
+        info["logged_in"] = True if on else _vpn_login["signed_in"]
     return info
 
 
@@ -708,6 +719,8 @@ def vpn_target(country):
 def vpn_signed_in():
     """True, False, or None when it can't tell (offline). `account` asks Nord's servers,
     so only an exact "not logged in" counts as signed out."""
+    if FAKE:
+        return FAKE_VPN["logged_in"]
     code, text = nordvpn("account", timeout=20)
     if code == 0:
         return True
@@ -851,6 +864,7 @@ def _vpn_finish_login(link):
         _, text = nordvpn("login", "--callback", link, timeout=90)
         ok = vpn_signed_in() is True  # the CLI can say Welcome even when it failed
     if ok:
+        _vpn_login["signed_in"] = True
         s = get_settings()
         s["vpn_token_login"] = False
         save_json(SETTINGS_FILE, s)
@@ -861,15 +875,33 @@ def _vpn_watch_callback():
     try:
         while time.time() - _vpn_login["started"] < 900:
             if CALLBACK_FILE.exists():
-                link = CALLBACK_FILE.read_text(errors="replace").strip()
-                CALLBACK_FILE.unlink()
-                if link.startswith("nordvpn://login?") and len(link) <= 4096 and not re.search(r"\s", link):
-                    _vpn_finish_login(link)
-                    _vpn_login["url"] = None
-                    return
+                _vpn_login["finishing"] = True  # before the file goes, so the page sees one or the other
+                try:
+                    link = CALLBACK_FILE.read_text(errors="replace").strip()
+                    CALLBACK_FILE.unlink()
+                    if link.startswith("nordvpn://login?") and len(link) <= 4096 and not re.search(r"\s", link):
+                        _vpn_finish_login(link)
+                        _vpn_login["url"] = None
+                        return
+                finally:
+                    _vpn_login["finishing"] = False
             time.sleep(0.5)
     finally:
         _vpn_login["watching"] = False
+
+
+def _vpn_learn_sign_in():
+    """Gives the 15-second poll its first sign-in answer once NordVPN's service is up, so
+    Settings can say Not Signed In before anyone opens the VPN screen."""
+    for _ in range(30):
+        if _vpn_login["signed_in"] is not None:
+            return
+        answer = vpn_signed_in()
+        if answer is not None:
+            if _vpn_login["signed_in"] is None:  # a newer answer may have come in meanwhile
+                _vpn_login["signed_in"] = answer
+            return
+        time.sleep(10)
 
 
 # ---------- tile icons ----------
@@ -1179,6 +1211,8 @@ def main():
     if not FAKE:
         prepare_callback_dir()
     threading.Thread(target=windows_entry, daemon=True).start()
+    if FAKE or os.path.exists(NORDVPN):
+        threading.Thread(target=_vpn_learn_sign_in, daemon=True).start()
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.daemon_threads = True
     print("tvd listening on 127.0.0.1:%d%s" % (PORT, " (fake data)" if FAKE else ""), flush=True)
