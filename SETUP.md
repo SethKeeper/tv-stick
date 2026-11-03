@@ -14,7 +14,9 @@ One time only, about 5 minutes. Windows stays exactly as it is.
    tap **Del** (or **F2**) over and over until the BIOS appears.
 5. Use the arrow keys to open the **Boot** tab.
 6. If there's a **Fast Boot** setting, set it to **Disabled** (it can skip USB sticks).
-7. Select **Boot Option #1** and press **Enter**. Pick the entry with **SanDisk** in its name.
+7. Select **Boot Option #1** and press **Enter**. Pick the USB stick: its entry may show the
+   brand (**SanDisk**) or just something like **USB Partition 1**. If there are two, pick the
+   one that starts with **UEFI**.
 8. Press **F4** or **F10** to save and exit, and confirm with **Yes**.
 
 ## 2. First start
@@ -22,7 +24,8 @@ One time only, about 5 minutes. Windows stays exactly as it is.
 The PC restarts and shows its logo with a spinner. The first start takes about a minute
 because the stick sets itself up. Then the home screen appears: the time, Netflix, YouTube.
 
-If it shows **"Secure Boot Violation"** or goes back to Windows instead:
+If Windows starts instead, with no message, do steps 1.2 to 1.8 again. If Windows still
+starts, or you see **"Secure Boot Violation"**:
 
 1. First, in Windows, search for **Device encryption** in Settings. If it's **On**, open
    aka.ms/myrecoverykey on your phone and keep the recovery key at hand. Windows asks for it
@@ -37,9 +40,16 @@ If it shows **"Secure Boot Violation"** or goes back to Windows instead:
 - Click **Netflix** and sign in once. It remembers you.
 - **Home** on the remote brings you back to the home screen. If it doesn't, point at the very
   top of the screen and click the house icon.
-- **Add Website** (the plus tile) pins any other site. **Settings** has Wi-Fi, sound output,
-  text size and editing the home screen.
-- To turn it off, use the remote's power button or the power icon at the top right.
+- **Add Website** (the plus tile) pins any other site. **Settings** (the gear icon at the top
+  right) has Wi-Fi, Bluetooth, the VPN, sound output, text size and editing the home screen.
+- Put your Bluetooth headphones in pairing mode, open **Settings**, then **Bluetooth**, and
+  pick them under **Other Devices**. The sound moves to them. To move it back, open
+  **Settings**, then **Sound Output**.
+- The VPN needs a NordVPN account. Open **Settings**, then **VPN**, then **Sign In**, and type
+  your email and password on Nord's website. When the TV brings you back, switch **VPN** on.
+  To have it on every time the TV starts, also turn on **Connect at Startup**.
+- To turn the TV off, use the remote's power button, or the power icon at the top right, then
+  **Turn Off**.
 
 ## Back to Windows
 
