@@ -42,8 +42,10 @@ TOKEN = secrets.token_urlsafe(24)
 ALLOWED_HOSTS = {"127.0.0.1:%d" % PORT, "localhost:%d" % PORT}
 UA = "Mozilla/5.0 (X11; Linux x86_64; rv:144.0) Gecko/20100101 Firefox/144.0"
 CSP = ("default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; "
-       "script-src 'unsafe-inline'; connect-src 'self'; font-src 'self'; "
+       "script-src 'nonce-%s'; connect-src 'self'; font-src 'self'; "
        "base-uri 'none'; form-action 'none'")
+# Tile icons are other sites' files. An SVG one must never run script in this origin.
+ICON_CSP = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
 
 DEFAULT_TILES = [
     {"name": "Netflix", "url": "https://www.netflix.com/browse"},
@@ -422,6 +424,7 @@ BT_ERRORS = [
     ("not ready", "Bluetooth isn't ready yet. Try again in a moment."),
     ("profile-unavailable", "This TV can't use that kind of device."),
     ("does not exist", "That device is gone. Search again."),
+    ("key-missing", "The device forgot this TV. Choose Forget This Device, then pair it again."),
 ]
 
 
@@ -439,6 +442,27 @@ def bt_busctl(*args, timeout=15):
         if needle in text:
             return False, message
     return False, "Bluetooth said: " + ((err or out).strip().splitlines() or ["unknown error"])[-1]
+
+
+def bt_set_pairable(on):
+    """New pairings only go through while this is on. Settings turns it on just for the
+    pairing it starts, so nothing nearby can pair by itself or take a paired device's place."""
+    return bt_busctl("set-property", "org.bluez", BT_ADAPTER, "org.bluez.Adapter1",
+                     "Pairable", "b", "true" if on else "false", timeout=5)
+
+
+def _bt_close_pairing():
+    """Turns pairing off once BlueZ answers. BlueZ also turns it off by itself a minute after
+    the pairing agent starts (PairableTimeout in tv-main.conf)."""
+    for _ in range(24):
+        if _bt_lock.acquire(timeout=1):
+            try:
+                ok, _ = bt_set_pairable(False)
+            finally:
+                _bt_lock.release()
+            if ok:
+                return
+        time.sleep(5)
 
 
 DEVICE_LINE = re.compile(r"^Device ([0-9A-F]{2}(?::[0-9A-F]{2}){5}) (.*)$")
@@ -556,7 +580,11 @@ def bt_pair(mac):
         return True, ""
     bt_stop_scan()  # pairing while searching fails on many adapters
     path = bt_path(mac)
-    ok, err = bt_busctl("call", "org.bluez", path, "org.bluez.Device1", "Pair", timeout=40)
+    bt_set_pairable(True)
+    try:
+        ok, err = bt_busctl("call", "org.bluez", path, "org.bluez.Device1", "Pair", timeout=40)
+    finally:
+        bt_set_pairable(False)
     if not ok and "already" not in err.lower():
         return False, err
     bt_busctl("set-property", "org.bluez", path, "org.bluez.Device1", "Trusted", "b", "true")
@@ -942,6 +970,8 @@ def icon_size(sizes, href, fallback):
 
 
 def http_get(url, limit):
+    if not url.startswith(("http://", "https://")):
+        raise ValueError("not a web address")  # a site's manifest link could say file:///
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Language": "en-US,en;q=0.8"})
     with urllib.request.urlopen(req, timeout=8) as r:
         data = r.read(limit + 1)
@@ -1064,9 +1094,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/healthz":
             return self.reply(200, "ok", "text/plain")
         if path in ("/", "/index.html"):
-            html = (WWW / "index.html").read_text(encoding="utf-8").replace("__TV_TOKEN__", TOKEN)
+            # Only the page's own script carries the nonce, so markup that slips into the page
+            # (a neighbour's Wi-Fi or Bluetooth name, say) can't run even if escaping misses it.
+            nonce = secrets.token_urlsafe(16)
+            html = ((WWW / "index.html").read_text(encoding="utf-8")
+                    .replace("__TV_TOKEN__", TOKEN).replace("__TV_NONCE__", nonce))
             return self.reply(200, html, "text/html; charset=utf-8",
-                              {"Content-Security-Policy": CSP, "X-Frame-Options": "DENY",
+                              {"Content-Security-Policy": CSP % nonce, "X-Frame-Options": "DENY",
                                "Referrer-Policy": "no-referrer"})
         if path.startswith("/icon/"):
             if urllib.parse.parse_qs(url.query).get("t", [""])[0] != TOKEN:
@@ -1077,7 +1111,8 @@ class Handler(BaseHTTPRequestHandler):
             got = icon_for(host, site) if site else None
             if not got:
                 return self.reply(404, "", "text/plain")
-            return self.reply(200, got[1], got[0], cache="private, max-age=86400")
+            return self.reply(200, got[1], got[0], {"Content-Security-Policy": ICON_CSP},
+                              cache="private, max-age=86400")
         if path.startswith("/api/"):
             if self.headers.get("X-TV-Token") != TOKEN:
                 return self.reply(403, {"error": "forbidden"})
@@ -1210,6 +1245,7 @@ def main():
     STATE.mkdir(parents=True, exist_ok=True)
     if not FAKE:
         prepare_callback_dir()
+        threading.Thread(target=_bt_close_pairing, daemon=True).start()
     threading.Thread(target=windows_entry, daemon=True).start()
     if FAKE or os.path.exists(NORDVPN):
         threading.Thread(target=_vpn_learn_sign_in, daemon=True).start()

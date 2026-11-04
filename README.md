@@ -17,7 +17,8 @@ connected to an Epson projector at 1280x800.
   127.0.0.1:8765 by a small Python service (`tvd.py`). It also handles Wi-Fi, Bluetooth, the
   VPN, sound output, text size, power, and restarting into Windows for one boot.
 - Bluetooth pairing from Settings, with no PIN to type. Headphones and speakers that connect
-  there take over the sound.
+  there take over the sound. The TV only accepts a new pairing while Settings is pairing one,
+  so nothing nearby can pair with it on its own.
 - NordVPN's Linux app from Nord's own repository (you need a NordVPN account). You sign in on
   Nord's website, so the home screen never handles your password. Then you switch the VPN on
   in Settings, pick a country and choose whether it connects at startup.
@@ -65,7 +66,9 @@ that built it (`./build.sh` makes it the first time). With the stick running on 
 network, `test/ssh.sh tvstick.local` logs in as root. NordVPN's LAN discovery is turned on,
 which is meant to keep this working while the VPN is connected. If `tvstick.local` doesn't
 answer, `test/ssh.sh` and `./update-stick.sh` also take the IP address that Settings shows
-under About.
+under About. The first connection saves the stick's host key in `~/.ssh/known_hosts_tvstick`
+and later ones check it, so another device answering as `tvstick.local` gets refused.
+`./write-stick.sh` clears that file, because a new stick makes new keys.
 
 ## Boot menu
 

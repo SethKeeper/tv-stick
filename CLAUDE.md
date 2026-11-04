@@ -17,7 +17,11 @@ internal disks, and Windows is only reached through `efibootmgr --bootnext` (Res
 - Write: `./write-stick.sh diskN` only accepts a removable USB disk under 300 GB. The Mac's
   Work drive is an external disk too. Always check `diskutil list external physical` first.
 - Home screen: `rootfs/usr/local/lib/tvd/tvd.py` (root service: Host check against DNS
-  rebinding, per-boot token for every API call) and `www/index.html` (single file, sizes in vw,
-  works with a pointer or arrow keys). Preview with fake data: launch config "tv-home (fake data)".
+  rebinding, per-boot token for every API call, a new script nonce in the CSP for every page
+  load, so no inline handlers) and `www/index.html` (single file, sizes in vw, works with a
+  pointer or arrow keys). Preview with fake data: launch config "tv-home (fake data)".
+- Bluetooth: the adapter is only pairable while tvd's `bt_pair` runs (BlueZ's PairableTimeout
+  backs that up), and JustWorksRepairing stays `never`. Tested 2026-11-04 with btvirt radios in
+  the test VM: with `always`, a device using a paired device's address paired again silently.
 - Design: Apple TV look on request. Glass panels, grouped lists, tiles that lift and tilt.
 - UI copy and docs follow the humanizer rules (no em dashes).
