@@ -45,6 +45,8 @@ starts, or you see **"Secure Boot Violation"**:
 - Put your Bluetooth headphones in pairing mode, open **Settings**, then **Bluetooth**, and
   pick them under **Other Devices**. The sound moves to them. To move it back, open
   **Settings**, then **Sound Output**.
+- Headphones you also pair with Windows on this PC can stop connecting here. Open
+  **Settings**, then **Bluetooth**, pick them, choose **Forget This Device**, and pair them again.
 - The VPN needs a NordVPN account. Open **Settings**, then **VPN**, then **Sign In**, and type
   your email and password on Nord's website. When the TV brings you back, switch **VPN** on.
   To have it on every time the TV starts, also turn on **Connect at Startup**.

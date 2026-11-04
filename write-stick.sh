@@ -72,4 +72,6 @@ if digest.hexdigest() != want:
 print("Written and checked (%d MB)." % (size >> 20))
 PY
 
+# The new stick makes new SSH host keys on its first start; forget the old stick's.
+rm -f ~/.ssh/known_hosts_tvstick
 diskutil eject "/dev/$DISK" >/dev/null && echo "Ejected. You can pull the stick out."
